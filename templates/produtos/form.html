@@ -323,28 +323,53 @@
     });
 
     // Leitor de Código de Barras via Câmera
-    let html5QrcodeScanner = null;
+    let html5QrCode = null;
 
     function startScanner() {
         document.getElementById('scanner-modal').classList.remove('hidden');
         
-        if (!html5QrcodeScanner) {
-            html5QrcodeScanner = new Html5QrcodeScanner(
-                "reader",
-                { fps: 10, qrbox: {width: 250, height: 150} },
-                false);
-            
-            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+        if (!html5QrCode) {
+            html5QrCode = new Html5Qrcode("reader");
         }
+        
+        const config = { fps: 10, qrbox: { width: 280, height: 160 } };
+        
+        // Inicia a câmera automaticamente e pede permissão
+        html5QrCode.start(
+            { facingMode: "environment" }, 
+            config, 
+            onScanSuccess, 
+            onScanFailure
+        ).catch(err => {
+            console.error("Erro ao iniciar a câmera:", err);
+            document.getElementById('reader').innerHTML = `
+                <div class="p-8 text-center text-red-500 dark:text-red-400">
+                    <i data-lucide="camera-off" class="w-10 h-10 mx-auto mb-3 opacity-60"></i>
+                    <p class="text-sm font-semibold">Não foi possível acessar a câmera</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
+                        Verifique se você permitiu o acesso à câmera nas configurações do navegador.<br>
+                        O acesso requer uma conexão segura (HTTPS ou localhost).
+                    </p>
+                </div>
+            `;
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        });
     }
 
     function stopScanner() {
         document.getElementById('scanner-modal').classList.add('hidden');
-        if (html5QrcodeScanner) {
-            html5QrcodeScanner.clear().catch(error => {
-                console.error("Falha ao limpar o scanner.", error);
-            });
-            html5QrcodeScanner = null;
+        if (html5QrCode) {
+            if (html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('reader').innerHTML = "";
+                }).catch(err => {
+                    console.error("Falha ao parar o scanner", err);
+                });
+            } else {
+                document.getElementById('reader').innerHTML = "";
+            }
         }
     }
 
@@ -360,7 +385,7 @@
     }
 
     function onScanFailure(error) {
-        // Ignora erros contínuos de falha na leitura (comum quando não acha um código no frame)
+        // Ignora erros contínuos de falha na leitura
     }
 </script>
 {% endblock %}
