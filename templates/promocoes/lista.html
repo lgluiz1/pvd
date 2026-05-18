@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block header_actions %}
+<a href="{% url 'promocoes:criar' %}" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+    <i data-lucide="tag" class="w-4 h-4"></i>
+    Nova Promoção
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left whitespace-nowrap">
+            <thead>
+                <tr class="bg-gray-50 border-b border-gray-100 dark:bg-gray-900/50 dark:border-gray-700">
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Produto em Promoção</th>
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Tipo / Desconto</th>
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Período de Validade</th>
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Situação Atual</th>
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                {% for promo in promocoes %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded bg-gray-100 flex items-center justify-center overflow-hidden border dark:bg-gray-700 dark:border-gray-600">
+                                {% if promo.produto.imagem %}
+                                    <img src="{{ promo.produto.imagem.url }}" alt="Img" class="w-full h-full object-cover">
+                                {% else %}
+                                    <i data-lucide="package" class="w-5 h-5 text-gray-400"></i>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <p class="font-bold text-gray-900 dark:text-white">{{ promo.produto.nome }}</p>
+                                <p class="text-xs text-gray-500">Valor Base: R$ {{ promo.produto.valor_venda }}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="font-bold text-red-600 dark:text-red-400 text-lg">
+                            {% if promo.tipo == 'percentual' %}-{{ promo.valor }}%{% else %}- R$ {{ promo.valor }}{% endif %}
+                        </span>
+                        <p class="text-xs text-gray-500 capitalize">{{ promo.tipo }}</p>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                        {{ promo.data_inicio|date:"d/m/Y H:i" }}<br>
+                        <span class="text-xs text-gray-400 font-medium">até</span><br>
+                        {{ promo.data_fim|date:"d/m/Y H:i" }}
+                    </td>
+                    <td class="px-6 py-4">
+                        {% if not promo.ativo %}
+                            <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-lg text-xs font-medium dark:bg-gray-700 dark:text-gray-300">Desativada Manualmente</span>
+                        {% elif promo.esta_valida %}
+                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-lg text-xs font-medium flex items-center w-max gap-1.5 dark:bg-green-900/30 dark:text-green-400">
+                                <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> Em Vigor
+                            </span>
+                        {% else %}
+                            <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-lg text-xs font-medium dark:bg-yellow-900/30 dark:text-yellow-400">Expirada / Fora de Período</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <form action="{% url 'promocoes:toggle' promo.pk %}" method="POST" class="inline">
+                            {% csrf_token %}
+                            <button type="submit" class="inline-flex items-center justify-center px-3 py-1.5 {% if promo.ativo %}bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40{% else %}bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40{% endif %} rounded-lg text-xs font-bold transition-colors">
+                                {% if promo.ativo %}Encerrar{% else %}Ativar{% endif %}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                        <i data-lucide="tags" class="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3"></i>
+                        Nenhuma promoção cadastrada.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

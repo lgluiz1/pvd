@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block header_actions %}
+<a href="{% url 'caixa:lista' %}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300">Cancelar</a>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto mt-10">
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
+        <div class="p-8 text-center bg-blue-600 text-white">
+            <div class="w-16 h-16 bg-blue-500/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="play" class="w-8 h-8"></i>
+            </div>
+            <h2 class="text-2xl font-bold">Abertura de Caixa</h2>
+            <p class="text-blue-100 mt-2">Informe o saldo inicial em dinheiro na gaveta.</p>
+        </div>
+        <form method="POST" class="p-8 space-y-6">
+            {% csrf_token %}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Valor de Abertura (Gaveta)</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <span class="text-gray-500 sm:text-xl font-medium">R$</span>
+                    </div>
+                    <input type="number" step="0.01" name="valor_abertura" required autofocus
+                        class="pl-12 block w-full text-2xl py-4 rounded-xl border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 font-bold text-gray-900 dark:bg-gray-900 dark:border-gray-700 dark:text-white border">
+                </div>
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Operador logado: <strong class="text-gray-800 dark:text-gray-200">{{ user.get_full_name|default:user.username }}</strong></p>
+            </div>
+            <button type="submit" class="w-full py-4 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/30">
+                Confirmar Abertura
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

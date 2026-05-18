@@ -1,0 +1,367 @@
+{% extends 'base.html' %}
+
+{% block header_actions %}
+<a href="{% url 'produtos:lista' %}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 transition-colors">
+    Voltar
+</a>
+{% endblock %}
+
+{% block content %}
+<form method="POST" enctype="multipart/form-data" class="max-w-5xl">
+    {% csrf_token %}
+    
+    <!-- Info Básica -->
+    <div class="bg-white border border-gray-100 rounded-xl shadow-sm mb-6 dark:bg-gray-800 dark:border-gray-700">
+        <div class="p-6 border-b border-gray-100 dark:border-gray-700">
+            <h2 class="text-lg font-bold text-gray-900 dark:text-white">Informações Básicas</h2>
+        </div>
+        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome do Produto *</label>
+                <input type="text" name="nome" value="{{ produto.nome }}" required class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Código de Barras</label>
+                <div class="flex gap-2">
+                    <input type="text" name="codigo_barras" value="{{ produto.codigo_barras }}" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+                    <button type="button" onclick="startScanner()" class="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 dark:bg-blue-900/30 dark:border-blue-800 text-blue-600 dark:text-blue-400 transition-colors" title="Ler com a Câmera">
+                        <i data-lucide="camera" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="mt-2 flex items-center gap-2">
+                    <input type="checkbox" name="sem_codigo_barras" id="sem_codigo_barras" {% if produto.sem_codigo_barras %}checked{% endif %} class="rounded border-gray-300 text-blue-600">
+                    <label for="sem_codigo_barras" class="text-sm text-gray-600 dark:text-gray-400">Produto sem código de barras (gerar interno)</label>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria</label>
+                <select name="categoria" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+                    <option value="">Selecione...</option>
+                    {% for c in categorias %}
+                    <option value="{{ c.id }}" {% if produto.categoria_id == c.id %}selected{% endif %}>{{ c.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unidade de Medida *</label>
+                <select name="unidade_medida" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white" required>
+                    {% for value, label in unidades %}
+                    <option value="{{ value }}" {% if produto.unidade_medida == value %}selected{% elif not produto.id and value == 'un' %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Marca / Fabricante</label>
+                <input list="marcas_list" type="text" name="marca" value="{{ produto.marca }}" autocomplete="off" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white" placeholder="Digite para buscar ou criar...">
+                <datalist id="marcas_list">
+                    {% for m in marcas_existentes %}
+                    <option value="{{ m }}">
+                    {% endfor %}
+                </datalist>
+                <p class="text-[10px] text-gray-500 mt-1">Se a marca não existir, basta digitar que ela será criada automaticamente.</p>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Imagem do Produto</label>
+                <input type="file" name="imagem" accept="image/*" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            </div>
+        </div>
+    </div>
+
+    <!-- Preços e Estoque -->
+    <div class="bg-white border border-gray-100 rounded-xl shadow-sm mb-6 dark:bg-gray-800 dark:border-gray-700" x-data="{ compradoEmCaixa: {% if produto.comprado_em_caixa %}true{% else %}false{% endif %} }">
+        <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+            <h2 class="text-lg font-bold text-gray-900 dark:text-white">Preços e Estoque</h2>
+            <div class="flex items-center gap-2">
+                <input type="checkbox" name="comprado_em_caixa" id="comprado_em_caixa" x-model="compradoEmCaixa" class="rounded border-gray-300 text-blue-600">
+                <label for="comprado_em_caixa" class="text-sm font-medium text-gray-700 dark:text-gray-300">Comprado em Caixa / Fardo / Saco (Múltiplos itens)</label>
+            </div>
+        </div>
+
+        <!-- Bloco de Compra em Caixa -->
+        <div x-show="compradoEmCaixa" x-cloak class="p-6 bg-blue-50/50 dark:bg-blue-900/10 border-b border-gray-100 dark:border-gray-700 grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div>
+                <label class="block text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">Predefinição (Embalagem)</label>
+                <select id="select_embalagem" class="w-full px-3 py-2 border rounded-lg border-blue-200 dark:bg-gray-900 dark:border-blue-800 dark:text-white focus:ring-blue-500 focus:border-blue-500" onchange="preencherEmbalagem(this)">
+                    <option value="" data-qtd="">Livre (Digitar Manual)</option>
+                    {% for e in embalagens %}
+                    <option value="{{ e.id }}" data-qtd="{{ e.quantidade_itens|stringformat:'s' }}">{{ e.nome }} ({{ e.quantidade_itens|floatformat:2 }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">Qtd Caixas/Sacos Comprados</label>
+                <input type="text" id="calc_qtd_caixas" value="1" class="w-full px-3 py-2 border rounded-lg border-blue-200 dark:bg-gray-900 dark:border-blue-800 dark:text-white focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">Itens/Kilos em CADA Caixa</label>
+                <input type="text" name="qtd_itens_caixa" value="{{ produto.qtd_itens_caixa|default:''|stringformat:'s' }}" class="w-full px-3 py-2 border rounded-lg border-blue-200 dark:bg-gray-900 dark:border-blue-800 dark:text-white focus:ring-blue-500 focus:border-blue-500" id="qtd_caixa">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">Valor TOTAL Pago (R$)</label>
+                <input type="text" name="valor_caixa" value="{{ produto.valor_caixa|default:''|stringformat:'s' }}" class="w-full px-3 py-2 border rounded-lg border-blue-200 dark:bg-gray-900 dark:border-blue-800 dark:text-white focus:ring-blue-500 focus:border-blue-500" id="val_caixa">
+            </div>
+            <div class="md:col-span-4 flex flex-col gap-2 items-start mt-2">
+                <div class="flex flex-wrap items-center gap-3">
+                    <button type="button" onclick="aplicarCalculoCaixa()" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold shadow flex items-center gap-2 transition-colors">
+                        <i data-lucide="calculator" class="w-4 h-4"></i> Calcular e Somar ao Estoque
+                    </button>
+                    
+                    <span id="calc_feedback" class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-green-800 bg-green-100 rounded-lg dark:bg-green-900/30 dark:text-green-400">
+                        <i data-lucide="check" class="w-3.5 h-3.5"></i> Cálculo aplicado com sucesso!
+                    </span>
+                    
+                    <span id="calc_error" class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-800 bg-red-100 rounded-lg dark:bg-red-900/30 dark:text-red-400">
+                        <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> Preencha as 3 informações acima.
+                    </span>
+                </div>
+                <p class="text-xs text-blue-600 dark:text-blue-400 mt-1">Clique para dividir o valor total, preencher o custo unitário e somar as unidades compradas no estoque lá embaixo.</p>
+            </div>
+        </div>
+
+        <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valor de Compra (R$)</label>
+                <input type="text" name="valor_compra" value="{{ produto.valor_compra|default:'0.00'|stringformat:'s' }}" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white" id="val_compra">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Margem de Lucro (%)</label>
+                <input type="text" name="lucro_percentual" value="{{ produto.lucro_percentual|default:'0.00'|stringformat:'s' }}" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white" id="margem_lucro">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valor de Venda (R$)</label>
+                <input type="text" name="valor_venda" value="{{ produto.valor_venda|default:'0.00'|stringformat:'s' }}" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white font-bold text-blue-600" id="val_venda">
+            </div>
+            
+            <div class="md:col-span-3 border-t dark:border-gray-700 pt-4 mt-2"></div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Qtd Estoque Atual</label>
+                <input type="text" name="quantidade" value="{{ produto.quantidade|default:'0'|stringformat:'s' }}" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estoque Mínimo</label>
+                <input type="text" name="estoque_minimo" value="{{ produto.estoque_minimo|default:'5'|stringformat:'s' }}" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+            </div>
+        </div>
+    </div>
+    
+    {% if editando %}
+    <div class="bg-white border border-gray-100 rounded-xl shadow-sm mb-6 dark:bg-gray-800 dark:border-gray-700 p-6 flex gap-6">
+        <div class="flex items-center gap-2">
+            <input type="checkbox" name="ativo" id="ativo" {% if produto.ativo %}checked{% endif %} class="rounded border-gray-300 text-blue-600 w-5 h-5">
+            <label for="ativo" class="text-sm font-medium text-gray-700 dark:text-gray-300">Produto Ativo</label>
+        </div>
+        <div class="flex items-center gap-2">
+            <input type="checkbox" name="favorito" id="favorito" {% if produto.favorito %}checked{% endif %} class="rounded border-gray-300 text-blue-600 w-5 h-5">
+            <label for="favorito" class="text-sm font-medium text-gray-700 dark:text-gray-300">Favorito (PDV)</label>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="flex justify-end gap-3">
+        <a href="{% url 'produtos:lista' %}" class="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 transition-colors">Cancelar</a>
+        <button type="submit" class="px-6 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-2 transition-colors shadow-md">
+            <i data-lucide="save" class="w-4 h-4"></i>
+            Salvar Produto
+        </button>
+    </div>
+</form>
+
+<!-- Modal Scanner -->
+<div id="scanner-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="stopScanner()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full dark:bg-gray-800">
+            <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">Escaneie o Código de Barras</h3>
+                    <button type="button" onclick="stopScanner()" class="text-gray-400 hover:text-gray-500">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                <div id="reader" width="600px" class="bg-black rounded-lg overflow-hidden"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_scripts %}
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script>
+    // Suporte e formatação para números decimais no padrão brasileiro (vírgula)
+    const valCompra = document.getElementById('val_compra');
+    const margem = document.getElementById('margem_lucro');
+    const valVenda = document.getElementById('val_venda');
+    const valCaixa = document.getElementById('val_caixa');
+    const qtdCaixa = document.getElementById('qtd_caixa');
+    const inputQtdEstoque = document.querySelector('input[name="quantidade"]');
+    const inputEstoqueMinimo = document.querySelector('input[name="estoque_minimo"]');
+    const inputQtdCaixas = document.getElementById('calc_qtd_caixas');
+
+    function parseBrFloat(str) {
+        if (!str) return 0;
+        let strVal = str.toString().trim();
+        if (strVal.includes(',')) {
+            // Remove pontos de milhar e substitui a vírgula por ponto
+            strVal = strVal.replace(/\./g, '').replace(',', '.');
+        }
+        let parsed = parseFloat(strVal);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+
+    function formatBrValue(val, decimalPlaces = 2) {
+        return val.toLocaleString('pt-BR', {
+            minimumFractionDigits: decimalPlaces,
+            maximumFractionDigits: decimalPlaces
+        });
+    }
+
+    function formatBrInput(input, decimalPlaces = 2) {
+        if (!input || !input.value) return;
+        let parsed = parseBrFloat(input.value);
+        input.value = formatBrValue(parsed, decimalPlaces);
+    }
+
+    function calcVenda() {
+        let vc = parseBrFloat(valCompra.value);
+        let mg = parseBrFloat(margem.value);
+        if (vc > 0 && mg >= 0) {
+            let vv = vc + (vc * (mg/100));
+            valVenda.value = formatBrValue(vv, 2);
+        }
+    }
+    
+    function calcMargem() {
+        let vc = parseBrFloat(valCompra.value);
+        let vv = parseBrFloat(valVenda.value);
+        if (vc > 0 && vv >= vc) {
+            let mg = ((vv - vc) / vc) * 100;
+            margem.value = formatBrValue(mg, 2);
+        }
+    }
+
+    function preencherEmbalagem(selectObj) {
+        let selectedOption = selectObj.options[selectObj.selectedIndex];
+        let qtd = selectedOption.getAttribute('data-qtd');
+        if (qtd) {
+            let parsedQtd = parseBrFloat(qtd);
+            qtdCaixa.value = formatBrValue(parsedQtd, 3);
+        }
+    }
+
+    function aplicarCalculoCaixa() {
+        let qtdCaixas = parseBrFloat(inputQtdCaixas.value);
+        let itensPorCaixa = parseBrFloat(qtdCaixa.value);
+        let valorTotal = parseBrFloat(valCaixa.value);
+        const feedback = document.getElementById('calc_feedback');
+        const errorMsg = document.getElementById('calc_error');
+
+        if (feedback) feedback.classList.add('hidden');
+        if (errorMsg) errorMsg.classList.add('hidden');
+
+        if (qtdCaixas > 0 && itensPorCaixa > 0 && valorTotal > 0) {
+            let totalUnidades = qtdCaixas * itensPorCaixa;
+            let custoUnitario = valorTotal / totalUnidades;
+            
+            // Preenche custo unitário e atualiza venda
+            valCompra.value = formatBrValue(custoUnitario, 2);
+            calcVenda(); 
+            
+            // Soma a quantidade total no estoque atual
+            let estoqueAtual = parseBrFloat(inputQtdEstoque.value);
+            let novoEstoque = estoqueAtual + totalUnidades;
+            inputQtdEstoque.value = formatBrValue(novoEstoque, 3);
+            
+            // Mostra feedback de sucesso temporário
+            if (feedback) {
+                feedback.classList.remove('hidden');
+                setTimeout(() => {
+                    feedback.classList.add('hidden');
+                }, 4000);
+            }
+        } else {
+            if (errorMsg) {
+                errorMsg.classList.remove('hidden');
+                setTimeout(() => {
+                    errorMsg.classList.add('hidden');
+                }, 4000);
+            }
+        }
+    }
+
+    // Eventos de cálculo em tempo real
+    valCompra.addEventListener('input', calcVenda);
+    margem.addEventListener('input', calcVenda);
+    valVenda.addEventListener('input', calcMargem);
+
+    // Formatação e Eventos nos Inputs
+    const priceFields = [valCompra, margem, valVenda, valCaixa];
+    const qtyFields = [qtdCaixa, inputQtdEstoque, inputEstoqueMinimo, inputQtdCaixas];
+
+    priceFields.forEach(input => {
+        if (input) {
+            // Formata inicialmente (Django renderiza com ponto)
+            formatBrInput(input, 2);
+            // Formata ao sair do campo
+            input.addEventListener('blur', () => formatBrInput(input, 2));
+        }
+    });
+
+    qtyFields.forEach(input => {
+        if (input) {
+            // Formata inicialmente com 3 decimais (Kilos)
+            formatBrInput(input, 3);
+            // Formata ao sair do campo
+            input.addEventListener('blur', () => formatBrInput(input, 3));
+        }
+    });
+
+    // Leitor de Código de Barras via Câmera
+    let html5QrcodeScanner = null;
+
+    function startScanner() {
+        document.getElementById('scanner-modal').classList.remove('hidden');
+        
+        if (!html5QrcodeScanner) {
+            html5QrcodeScanner = new Html5QrcodeScanner(
+                "reader",
+                { fps: 10, qrbox: {width: 250, height: 150} },
+                false);
+            
+            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+        }
+    }
+
+    function stopScanner() {
+        document.getElementById('scanner-modal').classList.add('hidden');
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.clear().catch(error => {
+                console.error("Falha ao limpar o scanner.", error);
+            });
+            html5QrcodeScanner = null;
+        }
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+        document.querySelector('input[name="codigo_barras"]').value = decodedText;
+        document.getElementById('sem_codigo_barras').checked = false;
+        
+        // Emite um som de bip
+        let audio = new Audio('https://www.soundjay.com/buttons/sounds/beep-07a.mp3');
+        audio.play().catch(e => console.log('Bip bloqueado pelo navegador'));
+        
+        stopScanner();
+    }
+
+    function onScanFailure(error) {
+        // Ignora erros contínuos de falha na leitura (comum quando não acha um código no frame)
+    }
+</script>
+{% endblock %}
+{% endblock %}

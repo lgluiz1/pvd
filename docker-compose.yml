@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=pdv_cloud
+      - POSTGRES_USER=pdv_user
+      - POSTGRES_PASSWORD=pdv_pass
+    ports:
+      - "5439:5432"
+    restart: always
+
+  web:
+    build: .
+    command: sh -c "python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+    volumes:
+      - .:/app
+    ports:
+      - "8037:8000"
+    environment:
+      - DATABASE_URL=postgres://pdv_user:pdv_pass@db:5432/pdv_cloud
+      - DEBUG=True
+      - SECRET_KEY=pdv-super-secret-key-123
+      - ALLOWED_HOSTS=pvd.luizgustavo.tech,localhost,127.0.0.1
+      - CORS_ORIGINS=https://pvd.luizgustavo.tech,http://localhost:3000,http://127.0.0.1:3000
+    depends_on:
+      - db
+    restart: always
+
+volumes:
+  postgres_data:

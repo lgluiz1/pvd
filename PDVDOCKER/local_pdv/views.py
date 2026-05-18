@@ -1,0 +1,211 @@
+import json
+from django.shortcuts import render, redirect
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from local_pdv.models import ProdutoLocal, ClienteLocal, VendaLocal, ItemVendaLocal, ConfigLocal
+from local_pdv.sync_engine import pull_snapshot_from_cloud, push_sales_to_cloud, get_config
+
+def login_view(request):
+    """Página de Login Offline/Local do Operador."""
+    if request.user.is_authenticated:
+        return redirect('caixa_home')
+
+    erro = None
+    if request.method == 'POST':
+        usuario_digitado = request.POST.get('username', '').strip()
+        senha_digitada = request.POST.get('password', '')
+
+        # Autentica contra o SQLite local contendo usuários sincronizados!
+        user = authenticate(request, username=usuario_digitado, password=senha_digitada)
+        if user is not None:
+            login(request, user)
+            return redirect('caixa_home')
+        else:
+            erro = "Usuário ou senha inválidos. Caso seja o primeiro acesso, certifique-se de que a máquina foi sincronizada."
+
+    return render(request, 'local_pdv/login.html', {'erro': erro})
+
+
+def logout_view(request):
+    """Efetua logout do caixa local."""
+    logout(request)
+    return redirect('login')
+
+
+@login_required(login_url='login')
+def caixa_home(request):
+    """Página principal do Frente de Caixa (POS)."""
+    config = get_config()
+    produtos = ProdutoLocal.objects.all().order_by('nome')
+    clientes = ClienteLocal.objects.all().order_by('nome')
+    
+    return render(request, 'local_pdv/caixa.html', {
+        'produtos': produtos,
+        'clientes': clientes,
+        'config': config,
+    })
+
+@login_required(login_url='login')
+def ajax_buscar_produto(request):
+    """Busca rápida por código de barras ou código interno."""
+    query = request.GET.get('query', '').strip()
+    if not query:
+        return JsonResponse({'error': 'Consulta vazia'}, status=400)
+
+    try:
+        # Busca por código de barras ou código interno
+        produto = ProdutoLocal.objects.filter(
+            codigo_barras=query
+        ).first() or ProdutoLocal.objects.filter(
+            codigo_interno=query
+        ).first()
+
+        if not produto:
+            # Tentar busca por nome parcial
+            produto = ProdutoLocal.objects.filter(nome__icontains=query).first()
+
+        if produto:
+            return JsonResponse({
+                'success': True,
+                'id': produto.id,
+                'nome': produto.nome,
+                'valor_venda': float(produto.valor_venda),
+                'unidade_medida': produto.unidade_medida,
+                'quantidade': float(produto.quantidade),
+                'estoque_minimo': float(produto.estoque_minimo),
+                'estoque_baixo': produto.estoque_baixo,
+            })
+        
+        return JsonResponse({'success': False, 'error': 'Produto não cadastrado'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required(login_url='login')
+def ajax_buscar_cliente_nfc(request):
+    """Busca rápida de cliente offline pelo UID do Cartão NFC."""
+    uid = request.GET.get('uid', '').strip()
+    if not uid:
+        return JsonResponse({'error': 'UID vazio'}, status=400)
+
+    try:
+        cliente = ClienteLocal.objects.filter(nfc_uid=uid).first()
+        if cliente:
+            return JsonResponse({
+                'success': True,
+                'id': cliente.id,
+                'nome': cliente.nome,
+                'limite_credito': float(cliente.limite_credito),
+                'saldo_devedor': float(cliente.saldo_devedor),
+                'limite_disponivel': float(cliente.limite_disponivel),
+            })
+        return JsonResponse({'success': False, 'error': 'Cartão NFC não cadastrado ou cliente inexistente.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+@login_required(login_url='login')
+def ajax_finalizar_venda(request):
+    """Salva a venda offline/localmente, debita estoque local e agenda envio ao Cloud."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método inválido'}, status=400)
+
+    try:
+        data = json.loads(request.body)
+        total = data.get('total', 0)
+        metodo_pagamento = data.get('metodo_pagamento')
+        cliente_id = data.get('cliente_id')
+        itens = data.get('itens', [])
+
+        if not itens:
+            return JsonResponse({'success': False, 'error': 'Lista de produtos vazia.'})
+
+        # Carregar cliente se fornecido
+        cliente = None
+        if cliente_id:
+            cliente = ClienteLocal.objects.get(id=cliente_id)
+            # Se for fiado, verificar limite disponível
+            if metodo_pagamento == 'fiado':
+                if float(total) > float(cliente.limite_disponivel):
+                    return JsonResponse({
+                        'success': False, 
+                        'error': f'Crédito insuficiente! Disponível: R$ {cliente.limite_disponivel:.2f}'
+                    })
+                # Debita o saldo devedor offline
+                cliente.saldo_devedor += total
+                cliente.save()
+
+        # Criar a venda local
+        venda = VendaLocal.objects.create(
+            total=total,
+            metodo_pagamento=metodo_pagamento,
+            cliente=cliente
+        )
+
+        alertas_estoque = []
+
+        # Processar itens e decrementar estoque local
+        for it in itens:
+            prod_local = ProdutoLocal.objects.get(id=it['id'])
+            quantidade_vendida = it['quantidade']
+            
+            ItemVendaLocal.objects.create(
+                venda=venda,
+                produto=prod_local,
+                quantidade=quantidade_vendida,
+                valor_unitario=it['valor_unitario'],
+                total=it['total']
+            )
+
+            # Baixa estoque local
+            prod_local.quantidade -= quantidade_vendida
+            prod_local.save()
+
+            if prod_local.estoque_baixo:
+                alertas_estoque.append(f"{prod_local.nome} está com estoque baixo ({prod_local.quantidade:.3f} {prod_local.unidade_medida})!")
+
+        # Tentar sincronizar em segundo plano imediatamente (se falhar, fica pendente)
+        push_sales_to_cloud()
+
+        return JsonResponse({
+            'success': True,
+            'venda_id': str(venda.id),
+            'alertas_estoque': alertas_estoque
+        })
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required(login_url='login')
+def ajax_sync_snapshot(request):
+    """Gatilho manual de carga de dados (Nuven -> Local)."""
+    success, message = pull_snapshot_from_cloud()
+    return JsonResponse({'success': success, 'message': message})
+
+
+@login_required(login_url='login')
+def ajax_sync_push(request):
+    """Gatilho manual de envio de vendas pendentes."""
+    success, message = push_sales_to_cloud()
+    return JsonResponse({'success': success, 'message': message})
+
+
+@csrf_exempt
+@login_required(login_url='login')
+def ajax_save_config(request):
+    """Salva configurações de integração locais."""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            config = get_config()
+            config.api_token = data.get('api_token', '').strip()
+            config.api_cloud_url = data.get('api_cloud_url', '').strip()
+            config.save()
+            return JsonResponse({'success': True, 'message': 'Configurações de integração salvas!'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'error': 'Método inválido'}, status=400)

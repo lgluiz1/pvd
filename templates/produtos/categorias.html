@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block header_actions %}
+<a href="{% url 'produtos:lista' %}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 transition-colors">
+    Voltar
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Lista de Categorias -->
+    <div class="md:col-span-2 bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+        <div class="p-6 border-b border-gray-100 dark:border-gray-700">
+            <h2 class="text-lg font-bold text-gray-900 dark:text-white">Categorias Cadastradas</h2>
+        </div>
+        <table class="w-full text-left whitespace-nowrap">
+            <thead>
+                <tr class="bg-gray-50 border-b border-gray-100 dark:bg-gray-900/50 dark:border-gray-700">
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Nome</th>
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Descrição</th>
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                {% for c in categorias %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                    <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">{{ c.nome }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{{ c.descricao|default:"-" }}</td>
+                    <td class="px-6 py-4">
+                        {% if c.ativo %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Ativo</span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">Inativo</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="px-6 py-8 text-center text-gray-500">Nenhuma categoria cadastrada.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Form de Nova Categoria -->
+    <div class="bg-white border border-gray-100 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 self-start">
+        <div class="p-6 border-b border-gray-100 dark:border-gray-700">
+            <h2 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <i data-lucide="plus-circle" class="w-5 h-5 text-blue-600"></i>
+                Nova Categoria
+            </h2>
+        </div>
+        <form method="POST" class="p-6 space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome</label>
+                <input type="text" name="nome" required class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição</label>
+                <textarea name="descricao" rows="3" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"></textarea>
+            </div>
+            <button type="submit" class="w-full px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+                Salvar Categoria
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

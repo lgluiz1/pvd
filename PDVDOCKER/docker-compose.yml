@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  pdv-local:
+    build: .
+    container_name: pdv_local_container
+    ports:
+      - "8001:8001"
+    volumes:
+      - pdv_data:/app/db_data
+    environment:
+      - API_CLOUD_URL=https://pvd.luizgustavo.tech
+      - API_TOKEN=your_copied_api_token_here
+      - SQLITE_DB_PATH=/app/db_data/db.sqlite3
+    restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  pdv_data:

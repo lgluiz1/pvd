@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block header_actions %}
+<div class="flex gap-2">
+    <a href="{% url 'produtos:lista' %}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 transition-colors">
+        Voltar
+    </a>
+    <a href="{% url 'produtos:editar' produto.pk %}" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+        <i data-lucide="edit" class="w-4 h-4"></i>
+        Editar Produto
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Info Produto -->
+    <div class="md:col-span-2 bg-white border border-gray-100 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 p-6 flex flex-col md:flex-row gap-6">
+        <div class="w-48 h-48 rounded-lg bg-gray-100 dark:bg-gray-900 flex items-center justify-center overflow-hidden shrink-0 border dark:border-gray-700">
+            {% if produto.imagem %}
+                <img src="{{ produto.imagem.url }}" alt="{{ produto.nome }}" class="w-full h-full object-cover">
+            {% else %}
+                <i data-lucide="image" class="w-16 h-16 text-gray-300 dark:text-gray-600"></i>
+            {% endif %}
+        </div>
+        <div class="flex-1">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-1">{{ produto.nome }}</h2>
+                    <p class="text-gray-500 dark:text-gray-400 flex gap-4">
+                        <span>Código: {{ produto.codigo_barras|default:produto.codigo_interno }}</span>
+                        <span>Marca: {{ produto.marca|default:"-" }}</span>
+                    </p>
+                </div>
+                {% if produto.favorito %}
+                <div class="bg-yellow-50 text-yellow-600 p-2 rounded-lg dark:bg-yellow-900/30 dark:text-yellow-400">
+                    <i data-lucide="star" class="w-6 h-6 fill-current"></i>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-gray-50 p-4 rounded-lg dark:bg-gray-900/50">
+                    <p class="text-xs text-gray-500 uppercase mb-1">Preço Venda</p>
+                    <p class="text-lg font-bold text-blue-600 dark:text-blue-400">R$ {{ produto.valor_venda }}</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg dark:bg-gray-900/50">
+                    <p class="text-xs text-gray-500 uppercase mb-1">Custo</p>
+                    <p class="text-lg font-medium text-gray-900 dark:text-white">R$ {{ produto.valor_compra }}</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg dark:bg-gray-900/50">
+                    <p class="text-xs text-gray-500 uppercase mb-1">Margem</p>
+                    <p class="text-lg font-medium text-green-600 dark:text-green-400">{{ produto.lucro_percentual }}%</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg dark:bg-gray-900/50">
+                    <p class="text-xs text-gray-500 uppercase mb-1">Estoque</p>
+                    <p class="text-lg font-bold {% if produto.quantidade <= produto.estoque_minimo %}text-red-600{% else %}text-gray-900 dark:text-white{% endif %}">{{ produto.quantidade }} <span class="text-xs font-normal text-gray-500">{{ produto.unidade_medida }}</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Histórico de Preços -->
+    <div class="bg-white border border-gray-100 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
+        <div class="p-5 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+            <h3 class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <i data-lucide="history" class="w-5 h-5"></i> Histórico de Preço
+            </h3>
+        </div>
+        <div class="p-0">
+            <ul class="divide-y divide-gray-100 dark:divide-gray-700">
+                {% for hist in historico %}
+                <li class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="font-medium text-sm text-gray-900 dark:text-white">R$ {{ hist.valor_venda }}</span>
+                        <span class="text-xs text-gray-500">{{ hist.created_at|date:"d/m/y H:i" }}</span>
+                    </div>
+                    <p class="text-xs text-gray-500">Custo: R$ {{ hist.valor_compra }} | {{ hist.usuario.get_full_name|default:hist.usuario.username }}</p>
+                </li>
+                {% empty %}
+                <li class="p-4 text-sm text-gray-500 text-center">Nenhum histórico encontrado.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block header_actions %}
+<a href="{% url 'financeiro:lista' %}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 transition-colors">Cancelar</a>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white border border-gray-100 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
+        <div class="p-6 border-b border-gray-100 dark:border-gray-700">
+            <h2 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <i data-lucide="user-plus" class="w-5 h-5 text-blue-600"></i>
+                Abrir Conta Fiado
+            </h2>
+            <p class="text-sm text-gray-500 mt-1">Autorize um cliente a comprar fiado com limite estipulado.</p>
+        </div>
+        
+        <form method="POST" class="p-6 space-y-6">
+            {% csrf_token %}
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cliente *</label>
+                <select name="cliente_id" required class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+                    <option value="">Selecione um cliente...</option>
+                    {% for c in clientes %}
+                    <option value="{{ c.id }}">{{ c.nome }} (CPF: {{ c.cpf|default:"Não info." }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Limite de Crédito (R$)</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span class="text-gray-500">R$</span>
+                    </div>
+                    <input type="number" step="0.01" name="limite_credito" required class="pl-10 w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white font-bold text-lg">
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Regras de juros e multa serão aplicadas conforme as configurações da empresa.</p>
+            </div>
+            
+            <button type="submit" class="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm">
+                Criar Conta Fiado
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

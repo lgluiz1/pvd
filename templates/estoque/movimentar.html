@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block header_actions %}
+<a href="{% url 'estoque:lista' %}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300">Voltar</a>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <form method="POST" class="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+        {% csrf_token %}
+        <div class="p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+            <h2 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <i data-lucide="arrow-right-left" class="w-5 h-5 text-blue-600"></i>
+                Lançamento Manual de Estoque
+            </h2>
+            <p class="text-sm text-gray-500 mt-1">Registre devoluções, perdas ou ajustes manuais fora do fluxo do caixa.</p>
+        </div>
+        
+        <div class="p-6 space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Produto *</label>
+                <select name="produto_id" required class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+                    <option value="">Selecione um produto...</option>
+                    {% for p in produtos %}
+                    <option value="{{ p.id }}">{{ p.nome }} (Estoque atual: {{ p.quantidade }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Movimentação *</label>
+                    <select name="tipo" required class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+                        <option value="entrada">Entrada (+)</option>
+                        <option value="saida">Saída / Perda (-)</option>
+                        <option value="ajuste">Ajuste Direto (Substitui valor)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantidade *</label>
+                    <input type="number" name="quantidade" min="0" required class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white font-bold">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Motivo / Observação *</label>
+                <input type="text" name="motivo" required placeholder="Ex: Ajuste após inventário, produto vencido..." class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+            </div>
+        </div>
+
+        <div class="p-6 bg-gray-50 border-t border-gray-100 dark:bg-gray-900/50 dark:border-gray-700 flex justify-end">
+            <button type="submit" class="px-6 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+                Confirmar Lançamento
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

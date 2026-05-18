@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block header_actions %}
+<a href="{% url 'financeiro:lista' %}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 transition-colors">Voltar</a>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Resumo Conta -->
+    <div class="lg:col-span-1 space-y-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
+            <div class="bg-gray-900 p-6 text-center dark:bg-gray-950">
+                <div class="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-3 border border-gray-700 text-3xl font-bold text-white">
+                    {{ conta.cliente.nome|first|upper }}
+                </div>
+                <h2 class="text-xl font-bold text-white">{{ conta.cliente.nome }}</h2>
+                <p class="text-gray-400 text-sm mt-1">Telefone: {{ conta.cliente.telefone|default:"-" }}</p>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center pb-4 border-b dark:border-gray-700">
+                        <span class="text-gray-500 dark:text-gray-400 font-medium">Limite Crédito</span>
+                        <span class="text-lg font-bold text-gray-900 dark:text-white">R$ {{ conta.limite_credito }}</span>
+                    </div>
+                    <div class="flex justify-between items-center pb-4 border-b dark:border-gray-700">
+                        <span class="text-gray-500 dark:text-gray-400 font-medium">Saldo Devedor</span>
+                        <span class="text-xl font-bold text-red-600 dark:text-red-400">R$ {{ conta.saldo_devedor }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-500 dark:text-gray-400 font-medium">Disponível</span>
+                        <span class="text-lg font-bold text-green-600 dark:text-green-400">R$ {{ conta.disponivel }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700 p-6">
+            <h3 class="text-sm font-bold text-gray-500 uppercase mb-4">Regras Aplicadas</h3>
+            <ul class="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+                <li class="flex items-center gap-2">
+                    <i data-lucide="percent" class="w-4 h-4 text-blue-500"></i>
+                    Juros por Atraso: {{ conta.juros_atraso }}% a.m.
+                </li>
+                <li class="flex items-center gap-2">
+                    <i data-lucide="alert-circle" class="w-4 h-4 text-red-500"></i>
+                    Multa Fixa Atraso: R$ {{ conta.multa_atraso }}
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Parcelas -->
+    <div class="lg:col-span-2">
+        <div class="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+            <div class="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex justify-between items-center">
+                <h3 class="font-bold text-gray-900 dark:text-white">Carnê / Parcelas</h3>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left whitespace-nowrap">
+                    <thead>
+                        <tr class="bg-gray-50 border-b border-gray-100 dark:bg-gray-900/50 dark:border-gray-700">
+                            <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Vencimento</th>
+                            <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Valor Orig.</th>
+                            <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Juros/Multa</th>
+                            <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Total</th>
+                            <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                            <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                        {% for p in parcelas %}
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                            <td class="px-6 py-4 font-medium {% if p.status == 'atrasado' %}text-red-600{% else %}text-gray-900 dark:text-white{% endif %}">
+                                {{ p.vencimento|date:"d/m/Y" }}
+                            </td>
+                            <td class="px-6 py-4 text-gray-600 dark:text-gray-300">R$ {{ p.valor_original }}</td>
+                            <td class="px-6 py-4 text-gray-500 text-sm">
+                                {% if p.valor_juros > 0 or p.valor_multa > 0 %}
+                                    <span class="text-red-500">+ R$ {{ p.valor_juros|add:p.valor_multa }}</span>
+                                {% else %}-{% endif %}
+                            </td>
+                            <td class="px-6 py-4 font-bold text-gray-900 dark:text-white">R$ {{ p.valor_total }}</td>
+                            <td class="px-6 py-4">
+                                {% if p.status == 'pago' %}
+                                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium dark:bg-green-900/30 dark:text-green-400">Pago</span>
+                                {% elif p.status == 'atrasado' %}
+                                    <span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-medium dark:bg-red-900/30 dark:text-red-400">Atrasado</span>
+                                {% else %}
+                                    <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium dark:bg-yellow-900/30 dark:text-yellow-400">Pendente</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                {% if p.status != 'pago' and p.status != 'cancelado' %}
+                                <button onclick="openPaymentModal('{{ p.id }}', '{{ p.valor_total }}', '{{ p.vencimento|date:'d/m/Y' }}')" class="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition-colors dark:bg-blue-900/30 dark:text-blue-400">
+                                    Baixar / Pagar
+                                </button>
+                                {% elif p.status == 'pago' %}
+                                <span class="text-xs text-gray-500">Pago em {{ p.data_pagamento|date:"d/m" }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" class="p-8 text-center text-gray-500">Nenhuma parcela/carnê para este cliente.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Pagamento -->
+<div id="modal-pagamento" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeModal()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md w-full dark:bg-gray-800">
+            <form id="form-pagamento" method="POST">
+                {% csrf_token %}
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">Registrar Pagamento de Parcela</h3>
+                    
+                    <div class="p-3 bg-gray-50 rounded-lg mb-4 dark:bg-gray-900/50">
+                        <p class="text-sm text-gray-500">Vencimento: <strong id="modal-vencimento" class="text-gray-900 dark:text-white"></strong></p>
+                        <p class="text-sm text-gray-500">Valor Total Devido: <strong id="modal-valor-devido" class="text-red-600"></strong></p>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valor Pago (R$)</label>
+                            <input type="number" step="0.01" name="valor" id="modal-input-valor" required class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white text-lg font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Forma de Pagamento</label>
+                            <select name="forma_pagamento" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+                                <option value="dinheiro">Dinheiro</option>
+                                <option value="pix">PIX</option>
+                                <option value="cartao">Cartão</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto sm:text-sm">Confirmar Recebimento</button>
+                    <button type="button" onclick="closeModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+    function openPaymentModal(parcelaId, valor, vencimento) {
+        document.getElementById('modal-vencimento').textContent = vencimento;
+        document.getElementById('modal-valor-devido').textContent = 'R$ ' + valor;
+        document.getElementById('modal-input-valor').value = parseFloat(valor.replace(',', '.'));
+        document.getElementById('form-pagamento').action = `/financeiro/pagar/${parcelaId}/`;
+        document.getElementById('modal-pagamento').classList.remove('hidden');
+    }
+    function closeModal() {
+        document.getElementById('modal-pagamento').classList.add('hidden');
+    }
+</script>
+{% endblock %}
+{% endblock %}

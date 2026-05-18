@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block header_actions %}
+<a href="{% url 'financeiro:criar' %}" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+    <i data-lucide="plus" class="w-4 h-4"></i>
+    Abrir Conta Fiado
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left whitespace-nowrap">
+            <thead>
+                <tr class="bg-gray-50 border-b border-gray-100 dark:bg-gray-900/50 dark:border-gray-700">
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Cliente</th>
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Limite Crédito</th>
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Saldo Devedor</th>
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Disponível</th>
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Ação</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                {% for conta in contas %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold dark:bg-blue-900/30 dark:text-blue-400">
+                                {{ conta.cliente.nome|first|upper }}
+                            </div>
+                            <div>
+                                <p class="font-medium text-gray-900 dark:text-white">{{ conta.cliente.nome }}</p>
+                                <p class="text-xs text-gray-500">{{ conta.cliente.telefone|default:"Sem telefone" }}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-sm font-medium text-gray-600 dark:text-gray-300">R$ {{ conta.limite_credito }}</td>
+                    <td class="px-6 py-4 text-sm font-bold text-red-600 dark:text-red-400">R$ {{ conta.saldo_devedor }}</td>
+                    <td class="px-6 py-4 text-sm font-bold text-green-600 dark:text-green-400">R$ {{ conta.disponivel }}</td>
+                    <td class="px-6 py-4">
+                        {% if conta.ativo %}
+                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-lg text-xs font-medium dark:bg-green-900/30 dark:text-green-400">Conta Ativa</span>
+                        {% else %}
+                            <span class="px-2 py-1 bg-red-100 text-red-800 rounded-lg text-xs font-medium dark:bg-red-900/30 dark:text-red-400">Bloqueada</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <a href="{% url 'financeiro:detalhe' conta.pk %}" class="inline-flex items-center px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition-colors dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200">
+                            Ver Parcelas
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                        <i data-lucide="credit-card" class="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3"></i>
+                        Nenhuma conta fiado cadastrada.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
