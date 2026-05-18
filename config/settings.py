@@ -143,6 +143,9 @@ REST_FRAMEWORK = {
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ORIGINS', '').split(',') if not DEBUG else []
 
+# CSRF
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'https://pvd.luizgustavo.tech,http://localhost:8037').split(',')
+
 # Login
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
