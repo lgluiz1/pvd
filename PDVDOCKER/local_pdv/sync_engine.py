@@ -70,18 +70,24 @@ def pull_snapshot_from_cloud():
         usuarios_sincronizados = 0
         from django.contrib.auth.models import User
         for u in usuarios_dados:
-            user_local, created = User.objects.update_or_create(
-                username=u['username'],
-                defaults={
-                    'first_name': u.get('first_name', ''),
-                    'last_name': u.get('last_name', ''),
-                    'email': u.get('email', ''),
-                    'is_active': u.get('is_active', True),
-                }
-            )
-            # Define o hash da senha vindo diretamente do Cloud
-            user_local.password = u['password']
-            user_local.save()
+            user_local, created = User.objects.get_or_create(username=u['username'])
+            
+            changed = False
+            if created:
+                changed = True
+                
+            for attr in ['first_name', 'last_name', 'email', 'is_active']:
+                val = u.get(attr, '') if attr != 'is_active' else u.get(attr, True)
+                if getattr(user_local, attr) != val:
+                    setattr(user_local, attr, val)
+                    changed = True
+                    
+            if user_local.password != u['password']:
+                user_local.password = u['password']
+                changed = True
+                
+            if changed:
+                user_local.save()
             usuarios_sincronizados += 1
 
         config.ultimo_sync = timezone.now()

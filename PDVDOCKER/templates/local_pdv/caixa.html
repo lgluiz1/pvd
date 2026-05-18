@@ -831,27 +831,94 @@
             });
         }
 
-        function pullSnapshot() {
-            const btn = event.target;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i data-lucide="refresh-cw" class="w-4 h-4 animate-spin"></i> Sincronizando...';
-            btn.disabled = true;
+        function updateDropdowns(produtos, clientes) {
+            // 1. Atualizar dropdown de busca de produtos por nome
+            const productSelect = document.getElementById('quick-product-select');
+            const prevProdValue = productSelect.value;
+            productSelect.innerHTML = '<option value="">Buscar Produto na lista...</option>';
+            
+            produtos.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.codigo_interno || p.codigo_barras;
+                opt.setAttribute('data-id', p.id);
+                opt.textContent = `${p.nome} (${p.unidade_medida}) - R$ ${parseFloat(p.valor_venda).toFixed(2).replace('.', ',')}`;
+                productSelect.appendChild(opt);
+            });
+            productSelect.value = prevProdValue;
+
+            // 2. Atualizar dropdown de clientes fiado
+            const customerSelect = document.getElementById('fiado-customer-select');
+            const prevCustValue = customerSelect.value;
+            customerSelect.innerHTML = '<option value="">Selecione o Cliente...</option>';
+            
+            clientes.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.setAttribute('data-limit', c.limite_credito);
+                opt.setAttribute('data-debt', c.saldo_devedor);
+                opt.setAttribute('data-uid', c.nfc_uid);
+                opt.textContent = c.nome;
+                customerSelect.appendChild(opt);
+            });
+            customerSelect.value = prevCustValue;
+
+            if (prevCustValue) {
+                loadCustomerInfo();
+            }
+        }
+
+        function pullSnapshot(isManual = true) {
+            let btn = null;
+            let originalText = "";
+            
+            if (isManual && event && event.target) {
+                btn = event.target;
+                originalText = btn.innerHTML;
+                btn.innerHTML = '<i data-lucide="refresh-cw" class="w-4 h-4 animate-spin"></i> Sincronizando...';
+                btn.disabled = true;
+            }
 
             fetch('/sync-pull/')
                 .then(r => r.json())
                 .then(res => {
-                    alert(res.message);
-                    window.location.reload();
+                    if (res.success) {
+                        // Atualizar data/hora do sync
+                        const timeSpan = document.getElementById('sync-time');
+                        if (timeSpan) {
+                            timeSpan.textContent = res.ultimo_sync;
+                            // Feedback visual rápido
+                            timeSpan.classList.add('text-emerald-400', 'scale-105');
+                            setTimeout(() => {
+                                timeSpan.classList.remove('text-emerald-400', 'scale-105');
+                            }, 2000);
+                        }
+
+                        // Atualiza dinamicamente as listas de produtos e clientes via JS
+                        if (res.produtos && res.clientes) {
+                            updateDropdowns(res.produtos, res.clientes);
+                        }
+                    } else if (isManual) {
+                        alert(res.message || 'Erro ao sincronizar.');
+                    }
                 })
                 .catch(err => {
-                    console.error(err);
-                    alert('Erro de conexão. Verifique se o servidor de nuvem está rodando.');
+                    console.error("Erro no sync automático/manual:", err);
+                    if (isManual) {
+                        alert('Erro de conexão. Verifique se o servidor de nuvem está rodando.');
+                    }
                 })
                 .finally(() => {
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
+                    if (btn) {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }
                 });
         }
+
+        // Loop de Auto-Sincronização silenciosa a cada 1 minuto (60.000 milissegundos)
+        setInterval(() => {
+            pullSnapshot(false);
+        }, 60000);
     </script>
 </body>
 </html>

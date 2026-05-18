@@ -12,6 +12,12 @@ def login_view(request):
     if request.user.is_authenticated:
         return redirect('caixa_home')
 
+    # Se não houver nenhum usuário no banco local (primeiro acesso),
+    # criamos um superusuário local padrão 'admin'/'admin' para permitir o login inicial e configuração.
+    from django.contrib.auth.models import User
+    if not User.objects.exists():
+        User.objects.create_superuser('admin', 'admin@local.com', 'admin')
+
     erro = None
     if request.method == 'POST':
         usuario_digitado = request.POST.get('username', '').strip()
@@ -182,9 +188,35 @@ def ajax_finalizar_venda(request):
 
 @login_required(login_url='login')
 def ajax_sync_snapshot(request):
-    """Gatilho manual de carga de dados (Nuven -> Local)."""
+    """Gatilho manual de carga de dados (Nuvem -> Local)."""
     success, message = pull_snapshot_from_cloud()
-    return JsonResponse({'success': success, 'message': message})
+    if success:
+        # Serializar produtos e clientes locais para o JS recarregar sem reload!
+        produtos = list(ProdutoLocal.objects.all().values(
+            'id', 'nome', 'codigo_barras', 'codigo_interno', 'valor_venda', 'unidade_medida'
+        ))
+        # Converter Decimal para float para ser serializável em JSON
+        for p in produtos:
+            p['valor_venda'] = float(p['valor_venda'])
+
+        clientes = list(ClienteLocal.objects.all().values(
+            'id', 'nome', 'nfc_uid', 'limite_credito', 'saldo_devedor'
+        ))
+        for c in clientes:
+            c['limite_credito'] = float(c['limite_credito'])
+            c['saldo_devedor'] = float(c['saldo_devedor'])
+
+        config = get_config()
+        ultimo_sync = config.ultimo_sync.strftime('%d/%m %H:%M') if config.ultimo_sync else "Nunca"
+
+        return JsonResponse({
+            'success': True,
+            'message': message,
+            'produtos': produtos,
+            'clientes': clientes,
+            'ultimo_sync': ultimo_sync
+        })
+    return JsonResponse({'success': False, 'message': message})
 
 
 @login_required(login_url='login')
