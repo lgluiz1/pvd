@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='ClienteLocal',
             fields=[
-                ('id', models.IntegerField(primary_key=True, serialize=False)),
+                ('id', models.UUIDField(primary_key=True, serialize=False)),
                 ('nome', models.CharField(max_length=200)),
                 ('nfc_uid', models.CharField(blank=True, max_length=50, null=True)),
                 ('limite_credito', models.DecimalField(decimal_places=2, default=0, max_digits=10)),
@@ -35,7 +35,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='ProdutoLocal',
             fields=[
-                ('id', models.IntegerField(primary_key=True, serialize=False)),
+                ('id', models.UUIDField(primary_key=True, serialize=False)),
                 ('nome', models.CharField(max_length=200)),
                 ('codigo_barras', models.CharField(blank=True, max_length=50, null=True)),
                 ('codigo_interno', models.CharField(blank=True, max_length=50, null=True)),

@@ -3,7 +3,7 @@ from django.db import models
 
 class ProdutoLocal(models.Model):
     """Cópia local offline dos produtos da Nuvem."""
-    id = models.IntegerField(primary_key=True) # ID original do Cloud
+    id = models.UUIDField(primary_key=True) # ID original do Cloud (UUID)
     nome = models.CharField(max_length=200)
     codigo_barras = models.CharField(max_length=50, blank=True, null=True)
     codigo_interno = models.CharField(max_length=50, blank=True, null=True)
@@ -22,7 +22,7 @@ class ProdutoLocal(models.Model):
 
 class ClienteLocal(models.Model):
     """Cópia local offline dos clientes da Nuvem para Fiado e NFC."""
-    id = models.IntegerField(primary_key=True) # ID original do Cloud
+    id = models.UUIDField(primary_key=True) # ID original do Cloud (UUID)
     nome = models.CharField(max_length=200)
     nfc_uid = models.CharField(max_length=50, blank=True, null=True)
     limite_credito = models.DecimalField(max_digits=10, decimal_places=2, default=0)
