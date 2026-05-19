@@ -79,7 +79,7 @@ def ajax_buscar_produto(request):
         if produto:
             return JsonResponse({
                 'success': True,
-                'id': produto.id,
+                'id': str(produto.id),
                 'nome': produto.nome,
                 'valor_venda': float(produto.valor_venda),
                 'unidade_medida': produto.unidade_medida,
@@ -105,7 +105,7 @@ def ajax_buscar_cliente_nfc(request):
         if cliente:
             return JsonResponse({
                 'success': True,
-                'id': cliente.id,
+                'id': str(cliente.id),
                 'nome': cliente.nome,
                 'limite_credito': float(cliente.limite_credito),
                 'saldo_devedor': float(cliente.saldo_devedor),
@@ -199,14 +199,16 @@ def ajax_sync_snapshot(request):
         produtos = list(ProdutoLocal.objects.all().values(
             'id', 'nome', 'codigo_barras', 'codigo_interno', 'valor_venda', 'unidade_medida'
         ))
-        # Converter Decimal para float para ser serializável em JSON
+        # Converter Decimal para float para ser serializável em JSON e UUID para str
         for p in produtos:
+            p['id'] = str(p['id'])
             p['valor_venda'] = float(p['valor_venda'])
 
         clientes = list(ClienteLocal.objects.all().values(
             'id', 'nome', 'nfc_uid', 'limite_credito', 'saldo_devedor'
         ))
         for c in clientes:
+            c['id'] = str(c['id'])
             c['limite_credito'] = float(c['limite_credito'])
             c['saldo_devedor'] = float(c['saldo_devedor'])
 
