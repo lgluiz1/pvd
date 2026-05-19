@@ -24,6 +24,7 @@ def empresa_config(request):
         empresa.config_juros_atraso = request.POST.get('config_juros_atraso', empresa.config_juros_atraso)
         empresa.config_multa_fixa = request.POST.get('config_multa_fixa', empresa.config_multa_fixa)
         empresa.config_dias_tolerancia = request.POST.get('config_dias_tolerancia', empresa.config_dias_tolerancia)
+        empresa.config_impressao_tamanho = request.POST.get('config_impressao_tamanho', empresa.config_impressao_tamanho)
         empresa.pix_chave = request.POST.get('pix_chave', empresa.pix_chave)
         empresa.pix_tipo = request.POST.get('pix_tipo', empresa.pix_tipo)
         empresa.pix_nome = request.POST.get('pix_nome', empresa.pix_nome)

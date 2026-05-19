@@ -122,6 +122,28 @@
                             <input type="text" name="pix_cidade" value="{{ empresa.pix_cidade }}" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
                         </div>
                     </div>
+            </div>
+
+            <!-- Configurações de Impressão -->
+            <div class="bg-white border border-gray-100 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 mt-6">
+                <div class="p-5 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                    <h3 class="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <i data-lucide="printer" class="w-5 h-5 text-indigo-600"></i> Configurações de Impressão
+                    </h3>
+                </div>
+                <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <h4 class="text-sm font-bold text-gray-500 uppercase">Formato do Recibo / Cupom</h4>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tamanho da Bobina/Papel</label>
+                            <select name="config_impressao_tamanho" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+                                <option value="80mm" {% if empresa.config_impressao_tamanho == '80mm' %}selected{% endif %}>80mm (Bobina Térmica Padrão)</option>
+                                <option value="58mm" {% if empresa.config_impressao_tamanho == '58mm' %}selected{% endif %}>58mm (Bobina Térmica Pequena)</option>
+                                <option value="a4" {% if empresa.config_impressao_tamanho == 'a4' %}selected{% endif %}>A4 (Folha de Papel Inteira)</option>
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">Define a largura e o layout de formatação ao imprimir comprovantes de venda no sistema.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </form>

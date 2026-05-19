@@ -1,5 +1,122 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+<style>
+    /* Esconder o cupom de impressão na tela do navegador */
+    #receipt-print {
+        display: none;
+    }
+
+    @media print {
+        /* Ocultar layout padrão do desktop */
+        #desktop-layout, .no-print {
+            display: none !important;
+        }
+
+        /* Exibir e formatar o cupom de impressão */
+        #receipt-print {
+            display: block !important;
+            background-color: #fff !important;
+            color: #000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        {% if request.empresa.config_impressao_tamanho == '58mm' or request.empresa.config_impressao_tamanho == '80mm' %}
+        /* --- FORMATO TÉRMICO (BOBINA) --- */
+        @page {
+            margin: 0;
+            size: auto;
+        }
+        
+        body {
+            background: #fff;
+            color: #000;
+            margin: 0;
+            padding: 0;
+        }
+
+        #receipt-print {
+            width: {% if request.empresa.config_impressao_tamanho == '58mm' %}54mm{% else %}76mm{% endif %};
+            max-width: {% if request.empresa.config_impressao_tamanho == '58mm' %}54mm{% else %}76mm{% endif %};
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            line-height: 1.3;
+            padding: 2mm;
+            box-sizing: border-box;
+        }
+
+        .receipt-logo {
+            display: none !important; /* Logos coloridas/grandes não imprimem bem em térmica */
+        }
+        
+        .receipt-divider {
+            border-top: 1px dashed #000 !important;
+            margin: 2mm 0;
+            height: 0;
+        }
+
+        .receipt-title {
+            font-size: 13px;
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .text-center {
+            text-align: center !important;
+        }
+
+        .text-right {
+            text-align: right !important;
+        }
+
+        .receipt-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        .receipt-table th, .receipt-table td {
+            padding: 0.5mm 0;
+            border: none !important;
+        }
+
+        .receipt-table th {
+            border-bottom: 1px dashed #000 !important;
+            font-weight: bold;
+        }
+        {% else %}
+        /* --- FORMATO FOLHA A4 --- */
+        @page {
+            margin: 1.5cm;
+            size: A4;
+        }
+
+        #receipt-print {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto !important;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+        }
+
+        .receipt-divider {
+            border-top: 1px solid #e5e7eb !important;
+            margin: 4mm 0;
+            height: 0;
+        }
+
+        .receipt-title {
+            font-size: 18px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        {% endif %}
+    }
+</style>
+{% endblock %}
+
 {% block header_actions %}
 <div class="flex gap-2">
     <a href="{% url 'vendas:lista' %}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 transition-colors">
@@ -12,7 +129,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div id="desktop-layout" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <!-- Recibo / Itens -->
     <div class="lg:col-span-2 bg-white border border-gray-100 rounded-xl shadow-sm dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
         <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
@@ -138,6 +255,103 @@
                 </div>
             </form>
         </div>
+    </div>
+</div>
+
+<!-- Cupom de Impressão Exclusivo -->
+<div id="receipt-print" class="{% if request.empresa.config_impressao_tamanho == 'a4' %}bg-white border border-gray-200 rounded-xl shadow-md p-8{% endif %}">
+    <div class="text-center">
+        <h2 class="receipt-title">{{ request.empresa.nome_fantasia }}</h2>
+        <p class="text-xs">{{ request.empresa.razao_social }}</p>
+        <p class="text-xs">CNPJ: {{ request.empresa.cnpj }}</p>
+        {% if request.empresa.endereco %}
+        <p class="text-xs">{{ request.empresa.endereco }}</p>
+        {% endif %}
+        {% if request.empresa.telefone %}
+        <p class="text-xs">Tel: {{ request.empresa.telefone }}</p>
+        {% endif %}
+        
+        <div class="receipt-divider"></div>
+        
+        <h3 class="font-bold text-xs">CUPOM DE VENDA (NÃO FISCAL)</h3>
+        <p class="text-xs">Número: #{{ venda.numero }} | Data: {{ venda.created_at|date:"d/m/Y H:i" }}</p>
+    </div>
+
+    <div class="receipt-divider"></div>
+
+    <table class="receipt-table">
+        <thead>
+            <tr>
+                <th style="text-align: left;">Item/Qtd/Unit</th>
+                <th style="text-align: right;">Total (R$)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in itens %}
+            <tr>
+                <td style="text-align: left;">
+                    {{ item.produto_nome }}<br>
+                    <small>{{ item.quantidade }}x R$ {{ item.valor_unitario }}</small>
+                </td>
+                <td style="text-align: right; vertical-align: bottom;">R$ {{ item.subtotal }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="receipt-divider"></div>
+
+    <div class="space-y-1">
+        <div style="display: flex; justify-content: space-between; font-size: 11px;">
+            <span>Subtotal:</span>
+            <span>R$ {{ venda.subtotal }}</span>
+        </div>
+        {% if venda.desconto_valor > 0 %}
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #000;">
+            <span>Desconto:</span>
+            <span>- R$ {{ venda.desconto_valor }}</span>
+        </div>
+        {% endif %}
+        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; margin-top: 1mm;">
+            <span>TOTAL:</span>
+            <span>R$ {{ venda.total }}</span>
+        </div>
+    </div>
+
+    <div class="receipt-divider"></div>
+
+    <div class="space-y-1" style="font-size: 11px;">
+        <div style="display: flex; justify-content: space-between;">
+            <span>Pagamento:</span>
+            <span class="capitalize">{{ venda.get_forma_pagamento_display }}</span>
+        </div>
+        {% if venda.valor_recebido %}
+        <div style="display: flex; justify-content: space-between;">
+            <span>Valor Recebido:</span>
+            <span>R$ {{ venda.valor_recebido }}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+            <span>Troco:</span>
+            <span>R$ {{ venda.troco }}</span>
+        </div>
+        {% endif %}
+        {% if venda.cliente %}
+        <div style="display: flex; justify-content: space-between;">
+            <span>Cliente:</span>
+            <span>{{ venda.cliente.nome }}</span>
+        </div>
+        {% endif %}
+        <div style="display: flex; justify-content: space-between;">
+            <span>Operador:</span>
+            <span>{{ venda.operador.get_full_name|default:venda.operador.username }}</span>
+        </div>
+    </div>
+
+    <div class="receipt-divider"></div>
+
+    <div class="text-center" style="font-size: 11px; margin-top: 4mm;">
+        <p>Obrigado pela preferência!</p>
+        <p>Volte Sempre</p>
     </div>
 </div>
 {% endblock %}

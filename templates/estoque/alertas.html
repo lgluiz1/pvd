@@ -1,60 +1,115 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+<style>
+    @media print {
+        /* Ocultar barra lateral, cabeçalho global, botões e ações */
+        body * {
+            visibility: hidden;
+        }
+        #print-area, #print-area * {
+            visibility: visible;
+        }
+        #print-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        /* Ocultar links e elementos marcados como no-print */
+        .no-print {
+            display: none !important;
+        }
+        /* Melhorar visualização do grid na impressão (2 colunas lado a lado) */
+        .grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 1.5rem !important;
+        }
+        /* Forçar fundos coloridos leves a aparecerem na impressão */
+        .bg-red-50 {
+            background-color: #fef2f2 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .bg-yellow-50 {
+            background-color: #fef9c3 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block header_actions %}
-<a href="{% url 'estoque:lista' %}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300">Ir para Estoque Completo</a>
+<div class="flex gap-2">
+    <button onclick="window.print()" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
+        <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Relatório
+    </button>
+    <a href="{% url 'estoque:lista' %}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300">Ir para Estoque Completo</a>
+</div>
 {% endblock %}
 
 {% block content %}
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <!-- Produtos Zerados -->
-    <div class="bg-white border border-red-200 rounded-xl shadow-sm overflow-hidden dark:bg-gray-800 dark:border-red-900/50">
-        <div class="p-4 border-b border-red-100 bg-red-50 dark:bg-red-900/20 dark:border-red-900/50 flex justify-between items-center">
-            <h3 class="font-bold text-red-800 dark:text-red-400 flex items-center gap-2">
-                <i data-lucide="alert-circle" class="w-5 h-5"></i>
-                Estoque Zerado (Urgente)
-            </h3>
-            <span class="bg-red-200 text-red-800 text-xs font-bold px-2 py-0.5 rounded-full dark:bg-red-900/50 dark:text-red-300">{{ produtos_zerado|length }}</span>
-        </div>
-        <ul class="divide-y divide-gray-100 dark:divide-gray-700">
-            {% for p in produtos_zerado %}
-            <li class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center">
-                <div>
-                    <p class="font-bold text-gray-900 dark:text-white">{{ p.nome }}</p>
-                    <p class="text-xs text-gray-500">Mínimo ideal: {{ p.estoque_minimo }} {{ p.unidade_medida }}</p>
-                </div>
-                <a href="{% url 'produtos:editar' p.id %}" class="text-blue-600 hover:underline text-sm font-medium">Ver Cadastro</a>
-            </li>
-            {% empty %}
-            <li class="p-8 text-center text-gray-500">Nenhum produto zerado. Ótimo trabalho!</li>
-            {% endfor %}
-        </ul>
+<div id="print-area">
+    <div class="hidden print:block mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">{{ request.empresa.nome_fantasia }}</h2>
+        <p class="text-sm text-gray-500">Relatório de Alertas de Estoque — Gerado em {% now "d/m/Y H:i" %}</p>
     </div>
-
-    <!-- Produtos Baixos -->
-    <div class="bg-white border border-yellow-200 rounded-xl shadow-sm overflow-hidden dark:bg-gray-800 dark:border-yellow-900/50">
-        <div class="p-4 border-b border-yellow-100 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-900/50 flex justify-between items-center">
-            <h3 class="font-bold text-yellow-800 dark:text-yellow-400 flex items-center gap-2">
-                <i data-lucide="alert-triangle" class="w-5 h-5"></i>
-                Estoque Baixo (Repor)
-            </h3>
-            <span class="bg-yellow-200 text-yellow-800 text-xs font-bold px-2 py-0.5 rounded-full dark:bg-yellow-900/50 dark:text-yellow-300">{{ produtos_baixo|length }}</span>
-        </div>
-        <ul class="divide-y divide-gray-100 dark:divide-gray-700">
-            {% for p in produtos_baixo %}
-            <li class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center">
-                <div>
-                    <p class="font-bold text-gray-900 dark:text-white">{{ p.nome }}</p>
-                    <div class="flex items-center gap-2 mt-1">
-                        <span class="text-xs font-bold text-red-600 bg-red-100 px-1.5 rounded dark:bg-red-900/30 dark:text-red-400">{{ p.quantidade }} {{ p.unidade_medida }}</span>
-                        <span class="text-xs text-gray-500">Mín: {{ p.estoque_minimo }} {{ p.unidade_medida }}</span>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Produtos Zerados -->
+        <div class="bg-white border border-red-200 rounded-xl shadow-sm overflow-hidden dark:bg-gray-800 dark:border-red-900/50">
+            <div class="p-4 border-b border-red-100 bg-red-50 dark:bg-red-900/20 dark:border-red-900/50 flex justify-between items-center">
+                <h3 class="font-bold text-red-800 dark:text-red-400 flex items-center gap-2">
+                    <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                    Estoque Zerado (Urgente)
+                </h3>
+                <span class="bg-red-200 text-red-800 text-xs font-bold px-2 py-0.5 rounded-full dark:bg-red-900/50 dark:text-red-300">{{ produtos_zerado|length }}</span>
+            </div>
+            <ul class="divide-y divide-gray-100 dark:divide-gray-700">
+                {% for p in produtos_zerado %}
+                <li class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center">
+                    <div>
+                        <p class="font-bold text-gray-900 dark:text-white">{{ p.nome }}</p>
+                        <p class="text-xs text-gray-500">Mínimo ideal: {{ p.estoque_minimo }} {{ p.unidade_medida }}</p>
                     </div>
-                </div>
-                <a href="{% url 'produtos:editar' p.id %}" class="text-blue-600 hover:underline text-sm font-medium">Ver Cadastro</a>
-            </li>
-            {% empty %}
-            <li class="p-8 text-center text-gray-500">Todos os produtos estão com estoque acima do mínimo.</li>
-            {% endfor %}
-        </ul>
+                    <a href="{% url 'produtos:editar' p.id %}" class="no-print text-blue-600 hover:underline text-sm font-medium">Ver Cadastro</a>
+                </li>
+                {% empty %}
+                <li class="p-8 text-center text-gray-500">Nenhum produto zerado.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    
+        <!-- Produtos Baixos -->
+        <div class="bg-white border border-yellow-200 rounded-xl shadow-sm overflow-hidden dark:bg-gray-800 dark:border-yellow-900/50">
+            <div class="p-4 border-b border-yellow-100 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-900/50 flex justify-between items-center">
+                <h3 class="font-bold text-yellow-800 dark:text-yellow-400 flex items-center gap-2">
+                    <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                    Estoque Baixo (Repor)
+                </h3>
+                <span class="bg-yellow-200 text-yellow-800 text-xs font-bold px-2 py-0.5 rounded-full dark:bg-yellow-900/50 dark:text-red-300">{{ produtos_baixo|length }}</span>
+            </div>
+            <ul class="divide-y divide-gray-100 dark:divide-gray-700">
+                {% for p in produtos_baixo %}
+                <li class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 flex justify-between items-center">
+                    <div>
+                        <p class="font-bold text-gray-900 dark:text-white">{{ p.nome }}</p>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="text-xs font-bold text-red-600 bg-red-100 px-1.5 rounded dark:bg-red-900/30 dark:text-red-400">{{ p.quantidade }} {{ p.unidade_medida }}</span>
+                            <span class="text-xs text-gray-500">Mín: {{ p.estoque_minimo }} {{ p.unidade_medida }}</span>
+                        </div>
+                    </div>
+                    <a href="{% url 'produtos:editar' p.id %}" class="no-print text-blue-600 hover:underline text-sm font-medium">Ver Cadastro</a>
+                </li>
+                {% empty %}
+                <li class="p-8 text-center text-gray-500">Todos os produtos estão com estoque acima do mínimo.</li>
+                {% endfor %}
+            </ul>
+        </div>
     </div>
 </div>
 {% endblock %}

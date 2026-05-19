@@ -39,6 +39,18 @@ class Empresa(BaseModel):
         default=0, verbose_name='Dias de Tolerância'
     )
 
+    # Configurações de impressão
+    config_impressao_tamanho = models.CharField(
+        max_length=10,
+        choices=[
+            ('80mm', 'Térmica 80mm (Padrão)'),
+            ('58mm', 'Térmica 58mm (Pequena)'),
+            ('a4', 'A4 (Folha Inteira)'),
+        ],
+        default='80mm',
+        verbose_name='Tamanho do Papel de Impressão'
+    )
+
     # PIX
     pix_chave = models.CharField(max_length=100, blank=True, verbose_name='Chave PIX')
     pix_tipo = models.CharField(
