@@ -47,10 +47,14 @@ def caixa_home(request):
     produtos = ProdutoLocal.objects.all().order_by('nome')
     clientes = ClienteLocal.objects.all().order_by('nome')
     
+    # Filtra produtos com estoque baixo para alertas na tela
+    produtos_estoque_baixo = [p for p in produtos if p.estoque_baixo]
+    
     return render(request, 'local_pdv/caixa.html', {
         'produtos': produtos,
         'clientes': clientes,
         'config': config,
+        'produtos_estoque_baixo': produtos_estoque_baixo,
     })
 
 @login_required(login_url='login')

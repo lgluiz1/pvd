@@ -162,12 +162,12 @@
                 <!-- Quick Autocomplete Dropdown list -->
                 <div>
                     <label class="block text-xs text-gray-500 mb-1">Selecione Produto por Nome</label>
-                    <select id="quick-product-select" onchange="addSelectedProduct()" class="w-full px-3 py-2.5 bg-gray-900 border border-gray-800 rounded-lg text-sm text-gray-300 outline-none">
-                        <option value="">Buscar Produto na lista...</option>
+                    <input type="text" id="quick-product-input" list="quick-product-list" oninput="handleProductSelectInput()" placeholder="Buscar Produto na lista..." class="w-full px-3 py-2.5 bg-gray-900 border border-gray-800 rounded-lg text-sm text-gray-300 outline-none">
+                    <datalist id="quick-product-list">
                         {% for p in produtos %}
-                        <option value="{{ p.codigo_interno }}" data-id="{{ p.id }}">{{ p.nome }} ({{ p.unidade_medida }}) - R$ {{ p.valor_venda }}</option>
+                        <option value="{{ p.nome }} ({{ p.unidade_medida }}) - R$ {{ p.valor_venda }}" data-id="{{ p.id }}" data-codigo="{{ p.codigo_interno|default:p.codigo_barras|default:'' }}"></option>
                         {% endfor %}
-                    </select>
+                    </datalist>
                 </div>
             </div>
 
@@ -206,7 +206,16 @@
                     <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500 animate-bounce"></i> Alertas de Estoque
                 </h3>
                 <div id="stock-alerts-box" class="max-h-[150px] overflow-y-auto space-y-2">
-                    <p class="text-xs text-gray-500">Nenhum produto em nível crítico no estoque local.</p>
+                    {% if produtos_estoque_baixo %}
+                        {% for p in produtos_estoque_baixo %}
+                            <p class="text-xs text-red-400 font-semibold bg-red-500/10 p-2 border border-red-500/20 rounded-lg flex items-center gap-1.5">
+                                <i data-lucide="alert-triangle" class="w-3.5 h-3.5 shrink-0"></i> 
+                                {{ p.nome }} está com estoque baixo ({{ p.quantidade|floatformat:3 }} {{ p.unidade_medida }})!
+                            </p>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-xs text-gray-500">Nenhum produto em nível crítico no estoque local.</p>
+                    {% endif %}
                 </div>
             </div>
         </section>
@@ -392,6 +401,50 @@
         // Auto-focus leitor ao iniciar
         document.getElementById('barcode-input').focus();
 
+        // Atalhos de teclado globais
+        document.addEventListener('keydown', function(event) {
+            // Ignorar se o foco estiver no modal de configurações ou pagamento e for digitar texto
+            const isInputActive = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
+            
+            // F2 ou ESPAÇO: Fechar Venda (Abre modal de pagamento)
+            if (event.key === 'F2') {
+                event.preventDefault();
+                openPaymentModal();
+            }
+
+            // ESC: Limpar ou Fechar modais
+            if (event.key === 'Escape') {
+                closeWeightModal();
+                closePaymentModal();
+                closeConfigModal();
+            }
+
+            // F1: Focar leitor
+            if (event.key === 'F1') {
+                event.preventDefault();
+                document.getElementById('barcode-input').focus();
+            }
+
+            // Alt + C: Limpar cupom
+            if (event.altKey && (event.key === 'c' || event.key === 'C')) {
+                event.preventDefault();
+                if(confirm("Deseja cancelar esta venda e limpar o cupom?")) {
+                    cartItems = [];
+                    renderCartTable();
+                    document.getElementById('barcode-input').focus();
+                }
+            }
+
+            // Atalhos dentro do modal de pagamento (1, 2, 3, 4)
+            const paymentModal = document.getElementById('payment-modal');
+            if (!paymentModal.classList.contains('hidden') && !isInputActive) {
+                if (event.key === '1') { event.preventDefault(); selectPaymentMethod('dinheiro'); }
+                if (event.key === '2') { event.preventDefault(); selectPaymentMethod('debito'); }
+                if (event.key === '3') { event.preventDefault(); selectPaymentMethod('credito'); }
+                if (event.key === '4') { event.preventDefault(); selectPaymentMethod('fiado'); }
+            }
+        });
+
         // ------------------ GERENCIAMENTO DO CARRINHO ------------------
         
         function handleBarcodeKey(event) {
@@ -425,24 +478,36 @@
             }
         }
 
-        function addSelectedProduct() {
-            const select = document.getElementById('quick-product-select');
-            const code = select.value;
-            if (!code) return;
+        function handleProductSelectInput() {
+            const input = document.getElementById('quick-product-input');
+            const val = input.value;
+            if (!val) return;
+
+            const list = document.getElementById('quick-product-list');
+            const options = list.options;
             
-            select.value = '';
-            
-            fetch(`/buscar-produto/?query=${encodeURIComponent(code)}`)
-                .then(r => r.json())
-                .then(res => {
-                    if (res.success) {
-                        if (res.unidade_medida === 'kg') {
-                            openWeightModal(res);
-                        } else {
-                            addProductToCart(res, 1);
-                        }
+            for (let i = 0; i < options.length; i++) {
+                if (options[i].value === val) {
+                    const codigo = options[i].getAttribute('data-codigo');
+                    if (codigo) {
+                        input.value = ''; // limpa o input após selecionar
+                        input.blur();
+                        
+                        fetch(`/buscar-produto/?query=${encodeURIComponent(codigo)}`)
+                            .then(r => r.json())
+                            .then(res => {
+                                if (res.success) {
+                                    if (res.unidade_medida === 'kg') {
+                                        openWeightModal(res);
+                                    } else {
+                                        addProductToCart(res, 1);
+                                    }
+                                }
+                            });
                     }
-                });
+                    break;
+                }
+            }
         }
 
         function addProductToCart(product, quantity) {
@@ -832,19 +897,17 @@
         }
 
         function updateDropdowns(produtos, clientes) {
-            // 1. Atualizar dropdown de busca de produtos por nome
-            const productSelect = document.getElementById('quick-product-select');
-            const prevProdValue = productSelect.value;
-            productSelect.innerHTML = '<option value="">Buscar Produto na lista...</option>';
+            // 1. Atualizar datalist de busca de produtos por nome
+            const productList = document.getElementById('quick-product-list');
+            productList.innerHTML = '';
             
             produtos.forEach(p => {
                 const opt = document.createElement('option');
-                opt.value = p.codigo_interno || p.codigo_barras;
+                opt.value = `${p.nome} (${p.unidade_medida}) - R$ ${parseFloat(p.valor_venda).toFixed(2).replace('.', ',')}`;
                 opt.setAttribute('data-id', p.id);
-                opt.textContent = `${p.nome} (${p.unidade_medida}) - R$ ${parseFloat(p.valor_venda).toFixed(2).replace('.', ',')}`;
-                productSelect.appendChild(opt);
+                opt.setAttribute('data-codigo', p.codigo_interno || p.codigo_barras || '');
+                productList.appendChild(opt);
             });
-            productSelect.value = prevProdValue;
 
             // 2. Atualizar dropdown de clientes fiado
             const customerSelect = document.getElementById('fiado-customer-select');
