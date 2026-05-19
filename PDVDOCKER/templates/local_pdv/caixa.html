@@ -387,8 +387,84 @@
         </div>
     </div>
 
+    <!-- Global UI Modals (Alerts / Confirms) -->
+    <div id="ui-alert-modal" class="hidden fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-black bg-opacity-75 transition-opacity" onclick="closeUishowUiAlert()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-slate-900 rounded-2xl border border-gray-800 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-sm w-full p-6">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="bg-blue-600/20 p-3 rounded-full text-blue-500">
+                        <i data-lucide="info" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white">Aviso do Sistema</h3>
+                </div>
+                <p id="ui-alert-msg" class="text-sm text-gray-300 mb-6 font-medium"></p>
+                <div class="flex justify-end">
+                    <button type="button" onclick="closeUishowUiAlert()" class="px-6 py-2 bg-blue-600 text-sm font-bold text-white rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/20 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="ui-confirm-modal" class="hidden fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-black bg-opacity-75 transition-opacity" onclick="closeUiConfirm()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-slate-900 rounded-2xl border border-gray-800 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-sm w-full p-6">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="bg-amber-500/20 p-3 rounded-full text-amber-500">
+                        <i data-lucide="help-circle" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white">Confirmação</h3>
+                </div>
+                <p id="ui-confirm-msg" class="text-sm text-gray-300 mb-6 font-medium"></p>
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="closeUiConfirm()" class="flex-1 px-4 py-2 bg-gray-800 text-sm font-semibold text-gray-300 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500">Cancelar</button>
+                    <button type="button" id="ui-confirm-btn" class="flex-1 px-6 py-2 bg-amber-600 text-sm font-bold text-white rounded-lg hover:bg-amber-700 shadow-lg shadow-amber-500/20 focus:outline-none focus:ring-2 focus:ring-amber-500">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Script principal do Frente de Caixa -->
     <script>
+        // Global UI Alert/Confirm helpers
+        let confirmCallback = null;
+
+        function showUishowUiAlert(msg) {
+            document.getElementById('ui-alert-msg').innerText = msg;
+            document.getElementById('ui-alert-modal').classList.remove('hidden');
+            // Focar botão OK
+            setTimeout(() => {
+                const btn = document.querySelector('#ui-alert-modal button');
+                if(btn) btn.focus();
+            }, 50);
+        }
+
+        function closeUishowUiAlert() {
+            document.getElementById('ui-alert-modal').classList.add('hidden');
+            document.getElementById('barcode-input').focus();
+        }
+
+        function showUiConfirm(msg, callback) {
+            document.getElementById('ui-confirm-msg').innerText = msg;
+            confirmCallback = callback;
+            document.getElementById('ui-confirm-modal').classList.remove('hidden');
+        }
+
+        function closeUiConfirm() {
+            document.getElementById('ui-confirm-modal').classList.add('hidden');
+            confirmCallback = null;
+            document.getElementById('barcode-input').focus();
+        }
+
+        document.getElementById('ui-confirm-btn').addEventListener('click', function() {
+            document.getElementById('ui-confirm-modal').classList.add('hidden');
+            if (confirmCallback) confirmCallback();
+            confirmCallback = null;
+        });
+
         // Lucide
         lucide.createIcons();
 
@@ -428,11 +504,11 @@
             // Alt + C: Limpar cupom
             if (event.altKey && (event.key === 'c' || event.key === 'C')) {
                 event.preventDefault();
-                if(confirm("Deseja cancelar esta venda e limpar o cupom?")) {
+                showUiConfirm("Deseja cancelar esta venda e limpar o cupom?", function() {
                     cartItems = [];
                     renderCartTable();
                     document.getElementById('barcode-input').focus();
-                }
+                });
             }
 
             // Atalhos dentro do modal de pagamento (1, 2, 3, 4)
@@ -468,12 +544,12 @@
                                 addProductToCart(res, 1);
                             }
                         } else {
-                            alert(res.error || 'Produto não cadastrado!');
+                            showUiAlert(res.error || 'Produto não cadastrado!');
                         }
                     })
                     .catch(err => {
                         console.error(err);
-                        alert('Erro ao consultar banco de dados local.');
+                        showUiAlert('Erro ao consultar banco de dados local.');
                     });
             }
         }
@@ -680,7 +756,7 @@
             const weightVal = parseFloat(input.value.replace(',', '.')) || 0;
             
             if (weightVal <= 0) {
-                alert('Peso da balança precisa ser maior que zero!');
+                showUiAlert('Peso da balança precisa ser maior que zero!');
                 return;
             }
 
@@ -782,24 +858,24 @@
                             select.value = res.id;
                             loadCustomerInfo();
                         } else {
-                            alert(res.error || 'Cartão NFC não identificado!');
+                            showUiAlert(res.error || 'Cartão NFC não identificado!');
                         }
                     })
                     .catch(err => {
                         console.error(err);
-                        alert('Erro ao buscar cartão NFC no SQLite local.');
+                        showUiAlert('Erro ao buscar cartão NFC no SQLite local.');
                     });
             }
         }
 
         function confirmPaymentCheckout() {
             if (!selectedPaymentMethod) {
-                alert('Por favor, selecione um método de pagamento!');
+                showUiAlert('Por favor, selecione um método de pagamento!');
                 return;
             }
 
             if (selectedPaymentMethod === 'fiado' && !selectedCustomerForFiado) {
-                alert('Por favor, selecione o cliente ou aproxime o Cartão NFC para Fiado!');
+                showUiAlert('Por favor, selecione o cliente ou aproxime o Cartão NFC para Fiado!');
                 return;
             }
 
@@ -829,7 +905,7 @@
             .then(r => r.json())
             .then(res => {
                 if (res.success) {
-                    alert('Venda finalizada com sucesso no POS local! Cupom impresso.');
+                    showUiAlert('Venda finalizada com sucesso no POS local! Cupom impresso.');
                     
                     // Exibir alertas de estoque baixo se houver
                     if (res.alertas_estoque && res.alertas_estoque.length > 0) {
@@ -851,12 +927,12 @@
                     closePaymentModal();
                     document.getElementById('barcode-input').focus();
                 } else {
-                    alert(res.error || 'Erro ao processar venda.');
+                    showUiAlert(res.error || 'Erro ao processar venda.');
                 }
             })
             .catch(err => {
                 console.error(err);
-                alert('Erro de conexão ou gravação no banco de dados local.');
+                showUiAlert('Erro de conexão ou gravação no banco de dados local.');
             });
         }
 
@@ -887,11 +963,11 @@
             .then(r => r.json())
             .then(res => {
                 if (res.success) {
-                    alert(res.message);
+                    showUiAlert(res.message);
                     closeConfigModal();
                     window.location.reload();
                 } else {
-                    alert(res.error || 'Erro ao salvar configurações.');
+                    showUiAlert(res.error || 'Erro ao salvar configurações.');
                 }
             });
         }
@@ -961,13 +1037,13 @@
                             updateDropdowns(res.produtos, res.clientes);
                         }
                     } else if (isManual) {
-                        alert(res.message || 'Erro ao sincronizar.');
+                        showUiAlert(res.message || 'Erro ao sincronizar.');
                     }
                 })
                 .catch(err => {
                     console.error("Erro no sync automático/manual:", err);
                     if (isManual) {
-                        alert('Erro de conexão. Verifique se o servidor de nuvem está rodando.');
+                        showUiAlert('Erro de conexão. Verifique se o servidor de nuvem está rodando.');
                     }
                 })
                 .finally(() => {
