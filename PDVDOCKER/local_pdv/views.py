@@ -193,6 +193,7 @@ def ajax_finalizar_venda(request):
 @login_required(login_url='login')
 def ajax_sync_snapshot(request):
     """Gatilho manual de carga de dados (Nuvem -> Local)."""
+    push_sales_to_cloud()
     success, message = pull_snapshot_from_cloud()
     if success:
         # Serializar produtos e clientes locais para o JS recarregar sem reload!
