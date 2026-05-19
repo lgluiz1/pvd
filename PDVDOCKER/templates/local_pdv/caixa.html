@@ -618,15 +618,25 @@
 
         function renderCartTable() {
             const tbody = document.getElementById('cart-table-body');
-            tbody.innerHTML = '';
             
             if (cartItems.length === 0) {
-                tbody.appendChild(document.getElementById('empty-cart-row'));
+                tbody.innerHTML = `
+                    <tr id="empty-cart-row">
+                        <td colspan="6" class="text-center py-24 text-gray-500">
+                            <i data-lucide="shopping-bag" class="w-16 h-16 mx-auto mb-3 opacity-30 text-blue-400"></i>
+                            <p class="text-base font-semibold">Caixa Disponível / Aguardando Código</p>
+                            <p class="text-xs text-gray-400 mt-1">Passe o código de barras ou use a busca rápida à direita.</p>
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
                 document.getElementById('label-subtotal').textContent = 'R$ 0,00';
                 document.getElementById('label-total').textContent = 'R$ 0,00';
                 document.getElementById('items-count-badge').textContent = '0 ITENS';
                 return;
             }
+
+            tbody.innerHTML = '';
 
             let subtotal = 0;
             cartItems.forEach((item, index) => {
