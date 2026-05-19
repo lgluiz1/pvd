@@ -121,7 +121,7 @@ def push_sales_to_cloud():
         itens = []
         for item in v.itens.all():
             itens.append({
-                "produto_id": item.produto.id,
+                "produto_id": str(item.produto.id),
                 "quantidade": float(item.quantidade),
                 "valor_unitario": float(item.valor_unitario),
                 "total": float(item.total),
@@ -131,7 +131,7 @@ def push_sales_to_cloud():
             "local_id": str(v.id),
             "total": float(v.total),
             "metodo_pagamento": v.metodo_pagamento,
-            "cliente_id": v.cliente.id if v.cliente else None,
+            "cliente_id": str(v.cliente.id) if v.cliente else None,
             "created_at": v.created_at.isoformat(),
             "itens": itens
         })
