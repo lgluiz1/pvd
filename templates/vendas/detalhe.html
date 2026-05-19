@@ -8,8 +8,24 @@
     }
 
     @media print {
+        /* Ocultar barra lateral, cabeçalho, título da página e elementos no-print */
+        aside, header, h1, div.mb-6, .no-print {
+            display: none !important;
+        }
+
+        /* Resetar o layout flexbox e limites de rolagem do base.html para permitir impressão limpa */
+        html, body, main, div.flex, div.relative {
+            display: block !important;
+            height: auto !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background-color: #fff !important;
+            color: #000 !important;
+        }
+
         /* Ocultar layout padrão do desktop */
-        #desktop-layout, .no-print {
+        #desktop-layout {
             display: none !important;
         }
 
@@ -27,13 +43,6 @@
         @page {
             margin: 0;
             size: auto;
-        }
-        
-        body {
-            background: #fff;
-            color: #000;
-            margin: 0;
-            padding: 0;
         }
 
         #receipt-print {
