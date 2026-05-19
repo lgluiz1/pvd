@@ -587,20 +587,39 @@
         }
 
         function addProductToCart(product, quantity) {
-            // Verifica se o item já está no carrinho
+            // 1. Verificar se o estoque atual é menor ou igual a zero
+            const currentStock = parseFloat(product.quantidade) || 0;
+            if (currentStock <= 0) {
+                showUiAlert(`O produto "${product.nome}" está com estoque esgotado (0 un)!`);
+                return;
+            }
+
+            // 2. Verificar se a quantidade desejada excede o estoque disponível
             const existingIndex = cartItems.findIndex(it => it.id === product.id);
+            let targetQuantity = quantity;
             if (existingIndex > -1) {
-                cartItems[existingIndex].quantidade += quantity;
+                targetQuantity += cartItems[existingIndex].quantidade;
+            }
+
+            if (targetQuantity > currentStock) {
+                showUiAlert(`Quantidade indisponível! Estoque atual do "${product.nome}": ${currentStock.toFixed(product.unidade_medida === 'kg' ? 3 : 0).replace('.', ',')} ${product.unidade_medida}.`);
+                return;
+            }
+
+            // Se passar da verificação, adiciona/atualiza no carrinho
+            if (existingIndex > -1) {
+                cartItems[existingIndex].quantidade = targetQuantity;
                 cartItems[existingIndex].total = cartItems[existingIndex].quantidade * cartItems[existingIndex].valor_venda;
             } else {
                 cartItems.push({
                     id: product.id,
-                    codigo: product.codigo_interno || product.codigo_barras,
+                    codigo: product.codigo_interno || product.codigo_barras || 'S/C',
                     nome: product.nome,
                     valor_venda: product.valor_venda,
                     unidade_medida: product.unidade_medida,
                     quantidade: quantity,
-                    total: quantity * product.valor_venda
+                    total: quantity * product.valor_venda,
+                    quantidade_estoque: currentStock
                 });
             }
             renderCartTable();
