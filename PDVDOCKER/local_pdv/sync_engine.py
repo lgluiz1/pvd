@@ -70,6 +70,8 @@ def pull_snapshot_from_cloud():
         usuarios_sincronizados = 0
         from django.contrib.auth.models import User
         for u in usuarios_dados:
+            if u['username'] == 'admin':
+                continue  # Protege o admin local para evitar deslogue involuntário e garantir consistência de acesso
             user_local, created = User.objects.get_or_create(username=u['username'])
             
             changed = False
