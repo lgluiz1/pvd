@@ -121,8 +121,13 @@ def sync_upload(request):
                 forma_pagamento=forma_pag,
                 status='finalizada',
                 sync_status='synced',
-                created_at=datetime.fromisoformat(v.get('created_at')) if v.get('created_at') else timezone.now()
             )
+            
+            # Forçar a data/hora original da venda local, pois created_at tem auto_now_add=True
+            sale_date = None
+            if v.get('created_at'):
+                sale_date = datetime.fromisoformat(v.get('created_at'))
+                Venda.objects.filter(id=venda.id).update(created_at=sale_date)
             
             # Criar itens e baixar estoque
             for item in v.get('itens', []):
@@ -151,7 +156,7 @@ def sync_upload(request):
                 produto.save()
                 
                 # Registrar movimentação na nuvem
-                MovimentacaoEstoque.objects.create(
+                mov = MovimentacaoEstoque.objects.create(
                     empresa=empresa,
                     produto=produto,
                     tipo='venda',
@@ -162,6 +167,8 @@ def sync_upload(request):
                     usuario=request.user,
                     referencia_venda=venda,
                 )
+                if sale_date:
+                    MovimentacaoEstoque.objects.filter(id=mov.id).update(created_at=sale_date)
                 
             # Se for fiado, registrar na conta de fiado
             if forma_pag == 'fiado' and cliente:
@@ -176,7 +183,7 @@ def sync_upload(request):
                 
                 # Criar Parcela de Fiado
                 vencimento = (timezone.now() + timezone.timedelta(days=30)).date()
-                ParcelaFiado.objects.create(
+                parcela = ParcelaFiado.objects.create(
                     empresa=empresa,
                     conta=conta,
                     venda=venda,
@@ -185,6 +192,8 @@ def sync_upload(request):
                     vencimento=vencimento,
                     status='pendente'
                 )
+                if sale_date:
+                    ParcelaFiado.objects.filter(id=parcela.id).update(created_at=sale_date)
                 
             vendas_processadas += 1
             
