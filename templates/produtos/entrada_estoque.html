@@ -192,20 +192,6 @@
         // Ignora erros normais (quando ele não está vendo um código)
     }
 
-    document.getElementById('btn-camera').addEventListener('click', function() {
-        document.getElementById('reader-container').classList.remove('hidden');
-        
-        if (!html5QrcodeScanner) {
-            html5QrcodeScanner = new Html5QrcodeScanner(
-                "reader",
-                { fps: 10, qrbox: {width: 250, height: 150}, rememberLastUsedCamera: true },
-                /* verbose= */ false);
-            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-        }
-    });
-
-    document.getElementById('btn-fechar-camera').addEventListener('click', stopScanner);
-
     function stopScanner() {
         document.getElementById('reader-container').classList.add('hidden');
         if (html5QrcodeScanner) {
@@ -215,5 +201,33 @@
             html5QrcodeScanner = null;
         }
     }
+
+    $(document).ready(function() {
+        const btnCamera = document.getElementById('btn-camera');
+        const btnFecharCamera = document.getElementById('btn-fechar-camera');
+        
+        if (btnCamera) {
+            btnCamera.addEventListener('click', function() {
+                document.getElementById('reader-container').classList.remove('hidden');
+                
+                try {
+                    if (!html5QrcodeScanner) {
+                        html5QrcodeScanner = new Html5QrcodeScanner(
+                            "reader",
+                            { fps: 10, qrbox: {width: 250, height: 150}, rememberLastUsedCamera: true },
+                            /* verbose= */ false);
+                        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert("Erro ao tentar abrir a câmera.\n\nMotivos comuns:\n1. O navegador bloqueou o acesso à câmera.\n2. Você está acessando pelo celular via HTTP (sem cadeado de segurança). O celular exige HTTPS para ligar a câmera.\n\nDetalhe técnico: " + err.message);
+                }
+            });
+        }
+
+        if (btnFecharCamera) {
+            btnFecharCamera.addEventListener('click', stopScanner);
+        }
+    });
 </script>
 {% endblock %}
