@@ -304,21 +304,51 @@
     const priceFields = [valCompra, margem, valVenda, valCaixa];
     const qtyFields = [qtdCaixa, inputQtdEstoque, inputEstoqueMinimo, inputQtdCaixas];
 
+    function applyCurrencyMask(input) {
+        input.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value === '') {
+                e.target.value = '';
+                return;
+            }
+            let number = parseInt(value, 10) / 100;
+            e.target.value = formatBrValue(number, 2);
+            
+            // Dispara evento manual para que as funções calcVenda e calcMargem percebam a mudança em tempo real
+            input.dispatchEvent(new Event('change'));
+        });
+
+        input.addEventListener('focus', function(e) {
+            if (e.target.value === '0,00' || e.target.value === '0') {
+                e.target.value = '';
+            } else {
+                e.target.select();
+            }
+        });
+    }
+
     priceFields.forEach(input => {
         if (input) {
-            // Formata inicialmente (Django renderiza com ponto)
             formatBrInput(input, 2);
-            // Formata ao sair do campo
-            input.addEventListener('blur', () => formatBrInput(input, 2));
+            applyCurrencyMask(input);
         }
     });
 
     qtyFields.forEach(input => {
         if (input) {
-            // Formata inicialmente com 3 decimais (Kilos)
             formatBrInput(input, 3);
-            // Formata ao sair do campo
+            
+            // Quantidades não usam máscara reversa obrigatória para não dificultar digitar "1" caixa, formata ao sair.
             input.addEventListener('blur', () => formatBrInput(input, 3));
+            
+            // Mas ganham o benefício de limpar/selecionar ao focar!
+            input.addEventListener('focus', function(e) {
+                if (e.target.value === '0,000' || e.target.value === '0') {
+                    e.target.value = '';
+                } else {
+                    e.target.select();
+                }
+            });
         }
     });
 
