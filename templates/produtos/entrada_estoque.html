@@ -19,12 +19,23 @@
             <!-- Busca por código -->
             <div class="mb-8">
                 <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Código de Barras ou Interno</label>
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i data-lucide="barcode" class="w-5 h-5 text-gray-400"></i>
+                <div class="relative flex items-center gap-2">
+                    <div class="relative flex-1">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i data-lucide="barcode" class="w-5 h-5 text-gray-400"></i>
+                        </div>
+                        <input type="text" id="input-busca-codigo" placeholder="Bipe ou digite o código e aperte ENTER..." 
+                            class="w-full pl-10 pr-4 py-3 text-lg border rounded-xl dark:bg-gray-900 dark:border-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-inner" autofocus>
                     </div>
-                    <input type="text" id="input-busca-codigo" placeholder="Bipe ou digite o código e aperte ENTER..." 
-                        class="w-full pl-10 pr-4 py-3 text-lg border rounded-xl dark:bg-gray-900 dark:border-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-inner" autofocus>
+                    <button type="button" id="btn-camera" class="p-3 bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-800/50 rounded-xl transition-colors shrink-0" title="Ler com a Câmera">
+                        <i data-lucide="camera" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                <div id="reader-container" class="mt-4 hidden">
+                    <div id="reader" class="w-full max-w-md mx-auto overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700"></div>
+                    <div class="text-center mt-2">
+                        <button type="button" id="btn-fechar-camera" class="text-sm text-red-500 hover:text-red-700 font-medium">Fechar Câmera</button>
+                    </div>
                 </div>
                 <p id="msg-busca" class="mt-2 text-sm text-red-500 hidden"></p>
             </div>
@@ -87,6 +98,7 @@
 
 {% block extra_js %}
 <script src="{% static 'js/jquery.mask.min.js' %}"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
 <script>
     $(document).ready(function() {
         $('.money2').mask("#.##0,00", {reverse: true});
@@ -149,6 +161,59 @@
         document.getElementById('input-busca-codigo').value = '';
         document.getElementById('input-busca-codigo').focus();
         document.getElementById('msg-busca').classList.add('hidden');
+    }
+
+    // Leitor de Câmera (Barcode / QR)
+    let html5QrcodeScanner = null;
+    
+    function onScanSuccess(decodedText, decodedResult) {
+        // Quando lê um código com sucesso
+        document.getElementById('input-busca-codigo').value = decodedText;
+        
+        // Simula o Enter para buscar
+        const event = new KeyboardEvent('keydown', { key: 'Enter' });
+        document.getElementById('input-busca-codigo').dispatchEvent(event);
+        
+        // Pausa a câmera após a leitura com sucesso para evitar leituras duplas rápidas
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.pause(true);
+            setTimeout(() => {
+                // Desliga totalmente se a busca achou o produto (o form_entrada perde o hidden)
+                if (!document.getElementById('form-entrada').classList.contains('hidden')) {
+                    stopScanner();
+                } else {
+                    html5QrcodeScanner.resume(); // Retoma se deu erro e ainda está na tela
+                }
+            }, 1000);
+        }
+    }
+
+    function onScanFailure(error) {
+        // Ignora erros normais (quando ele não está vendo um código)
+    }
+
+    document.getElementById('btn-camera').addEventListener('click', function() {
+        document.getElementById('reader-container').classList.remove('hidden');
+        
+        if (!html5QrcodeScanner) {
+            html5QrcodeScanner = new Html5QrcodeScanner(
+                "reader",
+                { fps: 10, qrbox: {width: 250, height: 150}, rememberLastUsedCamera: true },
+                /* verbose= */ false);
+            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+        }
+    });
+
+    document.getElementById('btn-fechar-camera').addEventListener('click', stopScanner);
+
+    function stopScanner() {
+        document.getElementById('reader-container').classList.add('hidden');
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.clear().catch(err => {
+                console.error("Failed to clear scanner", err);
+            });
+            html5QrcodeScanner = null;
+        }
     }
 </script>
 {% endblock %}
