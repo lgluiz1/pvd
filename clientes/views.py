@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 from django.db.models import Q
 from clientes.models import Cliente
 from financeiro.models import ContaFiado
@@ -15,6 +16,12 @@ def cliente_lista(request):
         clientes = clientes.filter(
             Q(nome__icontains=busca) | Q(cpf__icontains=busca) | Q(telefone__icontains=busca)
         )
+    status_filter = request.GET.get('status', 'ativo')
+    if status_filter == 'ativo':
+        clientes = clientes.filter(ativo=True)
+    elif status_filter == 'inativo':
+        clientes = clientes.filter(ativo=False)
+
     return render(request, 'clientes/lista.html', {
         'clientes': clientes, 'busca': busca, 'page_title': 'Clientes',
     })
@@ -56,6 +63,24 @@ def cliente_editar(request, pk):
     return render(request, 'clientes/form.html', {
         'cliente': cliente, 'page_title': f'Editar {cliente.nome}', 'editando': True,
     })
+
+
+@login_required
+@require_POST
+def cliente_excluir(request, pk):
+    """Exclui o cliente. Se já tiver vínculos (vendas, fiado), apenas desativa."""
+    cliente = get_object_or_404(Cliente, pk=pk, empresa=request.empresa)
+    nome = cliente.nome
+    try:
+        cliente.delete()
+        messages.success(request, f'Cliente "{nome}" excluído com sucesso.')
+    except Exception as e:
+        # Geralmente ProtectedError
+        cliente.ativo = False
+        cliente.save()
+        messages.warning(request, f'Cliente "{nome}" possui histórico no sistema, então foi desativado e removido da listagem principal.')
+    
+    return redirect('clientes:lista')
 
 
 @login_required
