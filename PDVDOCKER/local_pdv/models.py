@@ -36,9 +36,28 @@ class ClienteLocal(models.Model):
         return self.nome
 
 
+class SessaoCaixaLocal(models.Model):
+    """Sessão de caixa aberta localmente, sincronizada com a nuvem."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    operador_username = models.CharField(max_length=150)
+    abertura = models.DateTimeField(auto_now_add=True)
+    fechamento = models.DateTimeField(null=True, blank=True)
+    valor_abertura = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    valor_fechamento = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    status = models.CharField(max_length=20, default='aberta') # aberta, fechada
+    synced = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-abertura']
+
+    def __str__(self):
+        return f'Caixa Local {self.operador_username} - {self.status}'
+
+
 class VendaLocal(models.Model):
     """Venda realizada localmente (funciona off/on) enfileirada para sincronização."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    sessao = models.ForeignKey(SessaoCaixaLocal, on_delete=models.SET_NULL, null=True, blank=True, related_name='vendas')
     total = models.DecimalField(max_digits=10, decimal_places=2)
     metodo_pagamento = models.CharField(max_length=20) # dinheiro, debito, credito, pix, fiado
     cliente = models.ForeignKey(ClienteLocal, on_delete=models.SET_NULL, null=True, blank=True)

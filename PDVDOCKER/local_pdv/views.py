@@ -4,7 +4,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from local_pdv.models import ProdutoLocal, ClienteLocal, VendaLocal, ItemVendaLocal, ConfigLocal
+from django.utils import timezone
+from local_pdv.models import ProdutoLocal, ClienteLocal, VendaLocal, ItemVendaLocal, ConfigLocal, SessaoCaixaLocal
 from local_pdv.sync_engine import pull_snapshot_from_cloud, push_sales_to_cloud, get_config
 
 def login_view(request):
@@ -49,13 +50,53 @@ def caixa_home(request):
     
     # Filtra produtos com estoque baixo para alertas na tela
     produtos_estoque_baixo = [p for p in produtos if p.estoque_baixo]
-    
+    # Caixa atual
+    sessao_aberta = SessaoCaixaLocal.objects.filter(operador_username=request.user.username, status='aberta').first()
+
     return render(request, 'local_pdv/caixa.html', {
         'produtos': produtos,
         'clientes': clientes,
         'config': config,
         'produtos_estoque_baixo': produtos_estoque_baixo,
+        'sessao_aberta': sessao_aberta,
     })
+
+
+@login_required(login_url='login')
+def abrir_caixa(request):
+    if request.method == 'POST':
+        valor_abertura = request.POST.get('valor_abertura', '0').replace(',', '.')
+        try:
+            valor = float(valor_abertura)
+        except ValueError:
+            valor = 0.0
+
+        SessaoCaixaLocal.objects.create(
+            operador_username=request.user.username,
+            valor_abertura=valor,
+            status='aberta'
+        )
+    return redirect('caixa_home')
+
+
+@login_required(login_url='login')
+def fechar_caixa(request):
+    sessao = SessaoCaixaLocal.objects.filter(operador_username=request.user.username, status='aberta').first()
+    if sessao and request.method == 'POST':
+        # Fechamento simples sem checar divergência complexa
+        valor_informado = request.POST.get('valor_fechamento', '0').replace(',', '.')
+        try:
+            valor_fechamento = float(valor_informado)
+        except ValueError:
+            valor_fechamento = 0.0
+
+        sessao.valor_fechamento = valor_fechamento
+        sessao.fechamento = timezone.now()
+        sessao.status = 'fechada'
+        sessao.synced = False
+        sessao.save()
+
+    return redirect('caixa_home')
 
 @login_required(login_url='login')
 def ajax_buscar_produto(request):
@@ -157,8 +198,14 @@ def ajax_finalizar_venda(request):
             except ProdutoLocal.DoesNotExist:
                 return JsonResponse({'success': False, 'error': f'Produto com ID {it["id"]} não encontrado no banco local.'})
 
+        # Identificar Caixa Aberto
+        sessao = SessaoCaixaLocal.objects.filter(operador_username=request.user.username, status='aberta').first()
+        if not sessao:
+            return JsonResponse({'success': False, 'error': 'Não há nenhum caixa aberto para o seu usuário. Abra o caixa primeiro.'})
+
         # Criar a venda local
         venda = VendaLocal.objects.create(
+            sessao=sessao,
             total=total,
             metodo_pagamento=metodo_pagamento,
             cliente=cliente

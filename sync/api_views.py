@@ -68,6 +68,7 @@ def sync_upload(request):
     """Recebe fila de mudanças do PDV (vendas locais para a nuvem)."""
     empresa = request.empresa
     vendas_dados = request.data.get('vendas', [])
+    sessoes_dados = request.data.get('sessoes_caixa', [])
     
     from django.db import transaction
     from decimal import Decimal
@@ -80,9 +81,45 @@ def sync_upload(request):
     from estoque.models import MovimentacaoEstoque
     from financeiro.models import ContaFiado, ParcelaFiado
     
+    from usuarios.models import Usuario
+    from caixa.models import SessaoCaixa
+    
     vendas_processadas = 0
+    sessoes_processadas = 0
     
     with transaction.atomic():
+        # 1. Processar Sessões de Caixa primeiro
+        for s_data in sessoes_dados:
+            local_id = s_data.get('local_id')
+            if not local_id: continue
+
+            # Procura o operador na nuvem
+            username = s_data.get('operador_username')
+            operador = Usuario.objects.filter(username=username, empresa=empresa).first()
+            
+            # Tenta buscar ou criar a sessão
+            sessao, created = SessaoCaixa.objects.get_or_create(
+                local_id=local_id,
+                empresa=empresa,
+                defaults={
+                    'operador': operador,
+                    'valor_abertura': Decimal(str(s_data.get('valor_abertura', 0))),
+                    'status': s_data.get('status', 'aberta')
+                }
+            )
+
+            # Atualizar os dados de abertura/fechamento
+            if s_data.get('abertura'):
+                sessao.abertura = datetime.fromisoformat(s_data.get('abertura'))
+            if s_data.get('fechamento'):
+                sessao.fechamento = datetime.fromisoformat(s_data.get('fechamento'))
+                sessao.valor_fechamento = Decimal(str(s_data.get('valor_fechamento', 0)))
+                sessao.status = 'fechada'
+            
+            sessao.save()
+            sessoes_processadas += 1
+
+        # 2. Processar Vendas
         for v in vendas_dados:
             local_id = v.get('local_id')
             if not local_id:
@@ -109,6 +146,12 @@ def sync_upload(request):
             if cliente_id:
                 cliente = Cliente.objects.filter(id=cliente_id, empresa=empresa).first()
                 
+            # Buscar Sessão
+            sessao_id_local = v.get('sessao_id')
+            sessao_cloud = None
+            if sessao_id_local:
+                sessao_cloud = SessaoCaixa.objects.filter(local_id=sessao_id_local, empresa=empresa).first()
+
             # Criar Venda no Cloud
             venda = Venda.objects.create(
                 id=local_id,
@@ -116,6 +159,7 @@ def sync_upload(request):
                 numero=numero,
                 cliente=cliente,
                 operador=request.user,
+                caixa=sessao_cloud,
                 subtotal=Decimal(str(v.get('total', 0))),
                 total=Decimal(str(v.get('total', 0))),
                 forma_pagamento=forma_pag,
@@ -197,4 +241,4 @@ def sync_upload(request):
                 
             vendas_processadas += 1
             
-    return Response({'status': 'ok', 'processed': vendas_processadas})
+    return Response({'status': 'ok', 'vendas_processed': vendas_processadas, 'sessoes_processed': sessoes_processadas})

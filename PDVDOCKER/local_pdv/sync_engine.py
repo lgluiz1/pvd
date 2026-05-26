@@ -1,6 +1,6 @@
 import requests
 from django.utils import timezone
-from local_pdv.models import ProdutoLocal, ClienteLocal, VendaLocal, ConfigLocal
+from local_pdv.models import ProdutoLocal, ClienteLocal, VendaLocal, ConfigLocal, SessaoCaixaLocal
 
 def get_config():
     """Recupera ou cria as configurações de API do POS Local."""
@@ -102,14 +102,16 @@ def pull_snapshot_from_cloud():
 
 
 def push_sales_to_cloud():
-    """Envia todas as vendas locais pendentes para a nuvem."""
+    """Envia todas as vendas e sessoes de caixa locais pendentes para a nuvem."""
     config = get_config()
     if not config.api_token:
         return False, "Token de API não configurado."
 
     vendas_pendentes = VendaLocal.objects.filter(synced=False)
-    if not vendas_pendentes.exists():
-        return True, "Nenhuma venda pendente para sincronizar."
+    sessoes_pendentes = SessaoCaixaLocal.objects.filter(synced=False)
+    
+    if not vendas_pendentes.exists() and not sessoes_pendentes.exists():
+        return True, "Nada pendente para sincronizar."
 
     url = f"{config.api_cloud_url.rstrip('/')}/api/sync/upload/"
     headers = {
@@ -117,8 +119,21 @@ def push_sales_to_cloud():
         "Content-Type": "application/json"
     }
 
+    # Serializar sessoes pendentes
+    payload_sessoes = []
+    for s in sessoes_pendentes:
+        payload_sessoes.append({
+            "local_id": str(s.id),
+            "operador_username": s.operador_username,
+            "abertura": s.abertura.isoformat(),
+            "fechamento": s.fechamento.isoformat() if s.fechamento else None,
+            "valor_abertura": float(s.valor_abertura),
+            "valor_fechamento": float(s.valor_fechamento) if s.valor_fechamento else None,
+            "status": s.status
+        })
+
     # Serializar vendas pendentes
-    payload = []
+    payload_vendas = []
     for v in vendas_pendentes:
         itens = []
         for item in v.itens.all():
@@ -129,8 +144,9 @@ def push_sales_to_cloud():
                 "total": float(item.total),
             })
         
-        payload.append({
+        payload_vendas.append({
             "local_id": str(v.id),
+            "sessao_id": str(v.sessao.id) if v.sessao else None,
             "total": float(v.total),
             "metodo_pagamento": v.metodo_pagamento,
             "cliente_id": str(v.cliente.id) if v.cliente else None,
@@ -139,11 +155,12 @@ def push_sales_to_cloud():
         })
 
     try:
-        response = requests.post(url, json={"vendas": payload}, headers=headers, timeout=10)
+        response = requests.post(url, json={"vendas": payload_vendas, "sessoes_caixa": payload_sessoes}, headers=headers, timeout=10)
         if response.status_code == 200:
             # Marcar como sincronizado no local
             vendas_pendentes.update(synced=True)
-            return True, f"{vendas_pendentes.count()} vendas pendentes enviadas com sucesso!"
+            sessoes_pendentes.update(synced=True)
+            return True, f"Sincronização OK: {vendas_pendentes.count()} vendas e {sessoes_pendentes.count()} sessoes."
         else:
             return False, f"Nuvem recusou o sincronismo: {response.text}"
     except requests.exceptions.RequestException as e:

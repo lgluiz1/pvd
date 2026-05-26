@@ -9,6 +9,7 @@ class SessaoCaixa(TenantModel):
         ('fechada', 'Fechada'),
     ]
 
+    local_id = models.UUIDField(null=True, blank=True, verbose_name='ID Local PDV')
     operador = models.ForeignKey(
         'usuarios.Usuario', on_delete=models.SET_NULL, null=True,
         related_name='sessoes_caixa', verbose_name='Operador'
