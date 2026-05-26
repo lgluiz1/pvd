@@ -83,9 +83,11 @@ def sync_upload(request):
     
     from usuarios.models import Usuario
     from caixa.models import SessaoCaixa
+    from django.db.models import Sum
     
     vendas_processadas = 0
     sessoes_processadas = 0
+    sessoes_para_recalcular = set()
     
     with transaction.atomic():
         # 1. Processar Sessões de Caixa primeiro
@@ -117,6 +119,7 @@ def sync_upload(request):
                 sessao.status = 'fechada'
             
             sessao.save()
+            sessoes_para_recalcular.add(sessao)
             sessoes_processadas += 1
 
         # 2. Processar Vendas
@@ -151,6 +154,8 @@ def sync_upload(request):
             sessao_cloud = None
             if sessao_id_local:
                 sessao_cloud = SessaoCaixa.objects.filter(local_id=sessao_id_local, empresa=empresa).first()
+                if sessao_cloud:
+                    sessoes_para_recalcular.add(sessao_cloud)
 
             # Criar Venda no Cloud
             venda = Venda.objects.create(
@@ -241,4 +246,35 @@ def sync_upload(request):
                 
             vendas_processadas += 1
             
+        # 3. Recalcular totais dos caixas afetados (igual a caixa_fechar)
+        for sessao in sessoes_para_recalcular:
+            vendas_sessao = Venda.objects.filter(
+                empresa=empresa, caixa=sessao, status='finalizada'
+            )
+            
+            sessao.total_vendas = vendas_sessao.aggregate(t=Sum('total'))['t'] or 0
+            sessao.total_dinheiro = vendas_sessao.filter(forma_pagamento='dinheiro').aggregate(t=Sum('total'))['t'] or 0
+            sessao.total_pix = vendas_sessao.filter(forma_pagamento='pix').aggregate(t=Sum('total'))['t'] or 0
+            sessao.total_cartao_credito = vendas_sessao.filter(forma_pagamento='cartao_credito').aggregate(t=Sum('total'))['t'] or 0
+            sessao.total_cartao_debito = vendas_sessao.filter(forma_pagamento='cartao_debito').aggregate(t=Sum('total'))['t'] or 0
+            sessao.total_fiado = vendas_sessao.filter(forma_pagamento='fiado').aggregate(t=Sum('total'))['t'] or 0
+            
+            # Aqui não temos troco isolado na Venda recebida pelo PDV local (apenas o total final foi processado),
+            # mas vamos manter a base de cálculo.
+            sessao.total_sangrias = sessao.sangrias.aggregate(t=Sum('valor'))['t'] or 0
+            sessao.total_suprimentos = sessao.suprimentos.aggregate(t=Sum('valor'))['t'] or 0
+
+            valor_esperado = (
+                sessao.valor_abertura
+                + sessao.total_dinheiro
+                - sessao.total_sangrias
+                + sessao.total_suprimentos
+            )
+            
+            # Recalcula a divergência
+            if sessao.valor_fechamento is not None:
+                sessao.divergencia = sessao.valor_fechamento - valor_esperado
+                
+            sessao.save()
+
     return Response({'status': 'ok', 'vendas_processed': vendas_processadas, 'sessoes_processed': sessoes_processadas})
