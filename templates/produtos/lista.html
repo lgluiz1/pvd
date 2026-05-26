@@ -1,7 +1,10 @@
 {% extends 'base.html' %}
 
-{% block header_actions %}
 <div class="flex gap-2">
+    <a href="{% url 'produtos:entrada_estoque' %}" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-md shadow-emerald-500/20 transition-colors">
+        <i data-lucide="package-plus" class="w-4 h-4"></i>
+        Entrada Rápida
+    </a>
     <a href="{% url 'produtos:categorias' %}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 transition-colors">
         Gerenciar Categorias
     </a>

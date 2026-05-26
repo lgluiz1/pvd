@@ -150,19 +150,12 @@ def ajax_finalizar_venda(request):
                 cliente.saldo_devedor += total
                 cliente.save()
 
-        # Validar estoque de todos os itens antes de criar a venda (evita vendas parciais órfãs)
+        # Validar existência dos itens antes de criar a venda
         for it in itens:
             try:
                 prod_local = ProdutoLocal.objects.get(id=it['id'])
             except ProdutoLocal.DoesNotExist:
                 return JsonResponse({'success': False, 'error': f'Produto com ID {it["id"]} não encontrado no banco local.'})
-            
-            quantidade_vendida = float(it['quantidade'])
-            if float(prod_local.quantidade) < quantidade_vendida:
-                return JsonResponse({
-                    'success': False,
-                    'error': f'Estoque insuficiente para o produto "{prod_local.nome}"! Estoque local atual: {prod_local.quantidade:.3f} {prod_local.unidade_medida}.'
-                })
 
         # Criar a venda local
         venda = VendaLocal.objects.create(

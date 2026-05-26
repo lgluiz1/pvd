@@ -278,5 +278,50 @@ def buscar_por_codigo(request):
         return JsonResponse({'found': False})
 
 
+@login_required
+def entrada_estoque(request):
+    """Tela rápida para dar entrada em estoque via código de barras."""
+    if request.method == 'POST':
+        produto_id = request.POST.get('produto_id')
+        qtd_adicionar = clean_decimal(request.POST.get('quantidade_adicionar'))
+        novo_custo = clean_decimal(request.POST.get('novo_custo'))
+        novo_venda = clean_decimal(request.POST.get('novo_venda'))
+        
+        if produto_id and qtd_adicionar > 0:
+            produto = get_object_or_404(Produto, id=produto_id, empresa=request.empresa)
+            
+            estoque_anterior = produto.quantidade
+            produto.quantidade += qtd_adicionar
+            
+            preco_mudou = False
+            if novo_custo and novo_custo != produto.valor_compra:
+                produto.valor_compra = novo_custo
+                preco_mudou = True
+            if novo_venda and novo_venda != produto.valor_venda:
+                produto.valor_venda = novo_venda
+                preco_mudou = True
+                
+            produto.save()
+            
+            # Registrar no histórico
+            obs = f"Entrada Rápida: +{qtd_adicionar} {produto.unidade_medida}. Estoque de {estoque_anterior} para {produto.quantidade}."
+            
+            HistoricoPreco.objects.create(
+                empresa=request.empresa,
+                produto=produto,
+                valor_compra=produto.valor_compra,
+                valor_venda=produto.valor_venda,
+                lucro_percentual=produto.lucro_percentual,
+                usuario=request.user,
+                observacao=obs,
+            )
+            
+            messages.success(request, f'Estoque de "{produto.nome}" atualizado com sucesso! Novo saldo: {produto.quantidade}')
+            return redirect('produtos:entrada_estoque')
+            
+    return render(request, 'produtos/entrada_estoque.html', {
+        'page_title': 'Entrada Rápida de Estoque'
+    })
+
 # Import necessário para F expression
 from django.db import models

@@ -525,11 +525,24 @@
         
         function handleBarcodeKey(event) {
             if (event.key === 'Enter') {
-                const query = event.target.value.trim();
+                let query = event.target.value.trim();
                 if (!query) return;
                 
                 event.preventDefault();
                 event.target.value = '';
+
+                let qtdDesejada = 1;
+                // Suporte para multiplicador de quantidade ex: 5*789101112
+                if (query.includes('*')) {
+                    const partes = query.split('*');
+                    const qtdParsed = parseFloat(partes[0].replace(',', '.'));
+                    if (!isNaN(qtdParsed) && qtdParsed > 0) {
+                        qtdDesejada = qtdParsed;
+                        query = partes.slice(1).join('*').trim(); // O código é o que vem depois do *
+                    }
+                }
+
+                if (!query) return;
                 
                 // Buscar na API local
                 fetch(`/buscar-produto/?query=${encodeURIComponent(query)}`)
@@ -540,8 +553,8 @@
                                 // Abre modal de balança
                                 openWeightModal(res);
                             } else {
-                                // Adiciona 1 unidade diretamente
-                                addProductToCart(res, 1);
+                                // Adiciona a quantidade desejada
+                                addProductToCart(res, qtdDesejada);
                             }
                         } else {
                             showUiAlert(res.error || 'Produto não cadastrado!');
@@ -587,24 +600,14 @@
         }
 
         function addProductToCart(product, quantity) {
-            // 1. Verificar se o estoque atual é menor ou igual a zero
-            const currentStock = parseFloat(product.quantidade) || 0;
-            if (currentStock <= 0) {
-                showUiAlert(`O produto "${product.nome}" está com estoque esgotado (0 un)!`);
-                return;
-            }
-
-            // 2. Verificar se a quantidade desejada excede o estoque disponível
             const existingIndex = cartItems.findIndex(it => it.id === product.id);
             let targetQuantity = quantity;
+            
             if (existingIndex > -1) {
                 targetQuantity += cartItems[existingIndex].quantidade;
             }
 
-            if (targetQuantity > currentStock) {
-                showUiAlert(`Quantidade indisponível! Estoque atual do "${product.nome}": ${currentStock.toFixed(product.unidade_medida === 'kg' ? 3 : 0).replace('.', ',')} ${product.unidade_medida}.`);
-                return;
-            }
+            const currentStock = parseFloat(product.quantidade) || 0;
 
             // Se passar da verificação, adiciona/atualiza no carrinho
             if (existingIndex > -1) {
@@ -950,6 +953,9 @@
                         lucide.createIcons();
                     }
 
+                    // Imprime o cupom automaticamente
+                    imprimirCupom(res.venda_id, cartItems, total, selectedPaymentMethod, selectedCustomerForFiado);
+
                     // Limpa carrinho
                     cartItems = [];
                     renderCartTable();
@@ -963,6 +969,105 @@
                 console.error(err);
                 showUiAlert('Erro de conexão ou gravação no banco de dados local.');
             });
+        }
+
+        function imprimirCupom(venda_id, itens, total, metodo, cliente) {
+            const printWindow = window.open('', '_blank', 'width=400,height=600');
+            const dataAtual = new Date().toLocaleString('pt-BR');
+            let itensHtml = '';
+            
+            itens.forEach(item => {
+                const precoUnit = item.valor_venda.toFixed(2).replace('.', ',');
+                const subtotal = item.total.toFixed(2).replace('.', ',');
+                const qtd = item.quantidade.toFixed(item.unidade_medida === 'kg' ? 3 : 0).replace('.', ',');
+                
+                itensHtml += `
+                    <tr>
+                        <td style="font-size: 11px;">${item.nome}</td>
+                        <td style="font-size: 11px; text-align: center;">${qtd}</td>
+                        <td style="font-size: 11px; text-align: right;">${precoUnit}</td>
+                        <td style="font-size: 11px; text-align: right;">${subtotal}</td>
+                    </tr>
+                `;
+            });
+
+            let clienteHtml = '';
+            if (metodo === 'fiado' && cliente) {
+                clienteHtml = `
+                    <div style="margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px;">
+                        <strong>CLIENTE:</strong> ${cliente.nome}
+                    </div>
+                `;
+            }
+
+            const html = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Cupom de Venda</title>
+                    <style>
+                        body { font-family: 'Courier New', Courier, monospace; width: 300px; margin: 0; padding: 10px; color: #000; }
+                        .text-center { text-align: center; }
+                        .text-right { text-align: right; }
+                        .bold { font-weight: bold; }
+                        .dashed-line { border-top: 1px dashed #000; margin: 5px 0; }
+                        table { width: 100%; border-collapse: collapse; }
+                        th, td { padding: 2px 0; }
+                        @media print {
+                            body { width: 100%; margin: 0; padding: 0; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="text-center bold" style="font-size: 14px; margin-bottom: 5px;">CUPOM NÃO FISCAL</div>
+                    <div class="text-center" style="font-size: 12px;">FRENTE DE CAIXA</div>
+                    <div class="text-center" style="font-size: 10px;">Data: ${dataAtual} | Venda: #${venda_id.substring(0, 8)}</div>
+                    
+                    <div class="dashed-line"></div>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="font-size: 11px; text-align: left;">DESC</th>
+                                <th style="font-size: 11px; text-align: center;">QTD</th>
+                                <th style="font-size: 11px; text-align: right;">UN</th>
+                                <th style="font-size: 11px; text-align: right;">TOTAL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itensHtml}
+                        </tbody>
+                    </table>
+                    
+                    <div class="dashed-line"></div>
+                    
+                    <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold;">
+                        <span>TOTAL R$</span>
+                        <span>${total.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                    
+                    <div style="font-size: 11px; margin-top: 5px;">
+                        <strong>PAGAMENTO:</strong> ${metodo.toUpperCase()}
+                    </div>
+                    
+                    ${clienteHtml}
+
+                    <div class="dashed-line"></div>
+                    <div class="text-center" style="font-size: 10px; margin-top: 10px;">Obrigado pela preferência!</div>
+                    
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                            setTimeout(function() { window.close(); }, 500);
+                        }
+                    </script>
+                </body>
+                </html>
+            `;
+            
+            printWindow.document.write(html);
+            printWindow.document.close();
         }
 
         // ------------------ MODAIS DE CONFIG E CONEXÃO CLOUD ------------------
