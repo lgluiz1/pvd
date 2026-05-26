@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.http import JsonResponse
 from django.db.models import Q
@@ -40,15 +41,15 @@ def produto_lista(request):
     if categoria_id:
         produtos = produtos.filter(categoria_id=categoria_id)
 
-    status_filter = request.GET.get('status', '')
+    status_filter = request.GET.get('status', 'ativo')
     if status_filter == 'ativo':
         produtos = produtos.filter(ativo=True)
     elif status_filter == 'inativo':
         produtos = produtos.filter(ativo=False)
     elif status_filter == 'estoque_baixo':
-        produtos = produtos.filter(quantidade__lte=models.F('estoque_minimo'))
+        produtos = produtos.filter(ativo=True, quantidade__lte=models.F('estoque_minimo'))
     elif status_filter == 'favorito':
-        produtos = produtos.filter(favorito=True)
+        produtos = produtos.filter(ativo=True, favorito=True)
 
     categorias = Categoria.objects.filter(empresa=request.empresa, ativo=True)
 
@@ -198,6 +199,24 @@ def produto_detalhe(request, pk):
         'historico': historico,
         'page_title': produto.nome,
     })
+
+
+@login_required
+@require_POST
+def produto_excluir(request, pk):
+    """Exclui o produto. Se já tiver vendas associadas (ProtectedError), apenas desativa."""
+    produto = get_object_or_404(Produto, pk=pk, empresa=request.empresa)
+    nome = produto.nome
+    try:
+        produto.delete()
+        messages.success(request, f'Produto "{nome}" excluído com sucesso.')
+    except Exception as e:
+        # Geralmente ProtectedError se ele está vinculado a um ItemVenda
+        produto.ativo = False
+        produto.save()
+        messages.warning(request, f'Produto "{nome}" não pôde ser excluído pois possui histórico de vendas, então foi desativado e removido da listagem.')
+    
+    return redirect('produtos:lista')
 
 
 @login_required
