@@ -27,15 +27,10 @@
                         <input type="text" id="input-busca-codigo" placeholder="Bipe ou digite o código e aperte ENTER..." 
                             class="w-full pl-10 pr-4 py-3 text-lg border rounded-xl dark:bg-gray-900 dark:border-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-inner" autofocus>
                     </div>
-                    <button type="button" id="btn-camera" class="p-3 bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-800/50 rounded-xl transition-colors shrink-0" title="Ler com a Câmera">
+                    <button type="button" onclick="startScanner()" id="btn-camera" class="p-3 bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-800/50 rounded-xl transition-colors shrink-0" title="Ler com a Câmera">
                         <i data-lucide="camera" class="w-6 h-6"></i>
                     </button>
                 </div>
-                <div id="reader-container" class="mt-4 hidden">
-                    <div id="reader" class="w-full max-w-md mx-auto overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700"></div>
-                    <div class="text-center mt-2">
-                        <button type="button" id="btn-fechar-camera" class="text-sm text-red-500 hover:text-red-700 font-medium">Fechar Câmera</button>
-                    </div>
                 </div>
                 <p id="msg-busca" class="mt-2 text-sm text-red-500 hidden"></p>
             </div>
@@ -86,6 +81,25 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Scanner -->
+<div id="scanner-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="stopScanner()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full dark:bg-gray-800">
+            <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">Escaneie o Código de Barras</h3>
+                    <button type="button" onclick="stopScanner()" class="text-gray-400 hover:text-gray-500">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                <div id="reader" width="600px" class="bg-black rounded-lg overflow-hidden"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -163,71 +177,73 @@
         document.getElementById('msg-busca').classList.add('hidden');
     }
 
-    // Leitor de Câmera (Barcode / QR)
-    let html5QrcodeScanner = null;
-    
-    function onScanSuccess(decodedText, decodedResult) {
-        // Quando lê um código com sucesso
-        document.getElementById('input-busca-codigo').value = decodedText;
-        
-        // Simula o Enter para buscar
-        const event = new KeyboardEvent('keydown', { key: 'Enter' });
-        document.getElementById('input-busca-codigo').dispatchEvent(event);
-        
-        // Pausa a câmera após a leitura com sucesso para evitar leituras duplas rápidas
-        if (html5QrcodeScanner) {
-            html5QrcodeScanner.pause(true);
-            setTimeout(() => {
-                // Desliga totalmente se a busca achou o produto (o form_entrada perde o hidden)
-                if (!document.getElementById('form-entrada').classList.contains('hidden')) {
-                    stopScanner();
-                } else {
-                    html5QrcodeScanner.resume(); // Retoma se deu erro e ainda está na tela
-                }
-            }, 1000);
-        }
-    }
+    // Leitor de Câmera (Barcode / QR) - Modal
+    let html5QrCode = null;
 
-    function onScanFailure(error) {
-        // Ignora erros normais (quando ele não está vendo um código)
+    function startScanner() {
+        document.getElementById('scanner-modal').classList.remove('hidden');
+        
+        if (!html5QrCode) {
+            html5QrCode = new Html5Qrcode("reader");
+        }
+        
+        const config = { fps: 10, qrbox: { width: 280, height: 160 } };
+        
+        // Inicia a câmera automaticamente e pede permissão
+        html5QrCode.start(
+            { facingMode: "environment" }, 
+            config, 
+            onScanSuccess, 
+            onScanFailure
+        ).catch(err => {
+            console.error("Erro ao iniciar a câmera:", err);
+            document.getElementById('reader').innerHTML = `
+                <div class="p-8 text-center text-red-500 dark:text-red-400">
+                    <i data-lucide="camera-off" class="w-10 h-10 mx-auto mb-3 opacity-60"></i>
+                    <p class="text-sm font-semibold">Não foi possível acessar a câmera</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
+                        Verifique se você permitiu o acesso à câmera nas configurações do navegador.<br>
+                        O acesso requer uma conexão segura (HTTPS ou localhost).
+                    </p>
+                </div>
+            `;
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        });
     }
 
     function stopScanner() {
-        document.getElementById('reader-container').classList.add('hidden');
-        if (html5QrcodeScanner) {
-            html5QrcodeScanner.clear().catch(err => {
-                console.error("Failed to clear scanner", err);
-            });
-            html5QrcodeScanner = null;
+        document.getElementById('scanner-modal').classList.add('hidden');
+        if (html5QrCode) {
+            if (html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('reader').innerHTML = "";
+                }).catch(err => {
+                    console.error("Falha ao parar o scanner", err);
+                });
+            } else {
+                document.getElementById('reader').innerHTML = "";
+            }
         }
     }
 
-    $(document).ready(function() {
-        const btnCamera = document.getElementById('btn-camera');
-        const btnFecharCamera = document.getElementById('btn-fechar-camera');
+    function onScanSuccess(decodedText, decodedResult) {
+        document.getElementById('input-busca-codigo').value = decodedText;
         
-        if (btnCamera) {
-            btnCamera.addEventListener('click', function() {
-                document.getElementById('reader-container').classList.remove('hidden');
-                
-                try {
-                    if (!html5QrcodeScanner) {
-                        html5QrcodeScanner = new Html5QrcodeScanner(
-                            "reader",
-                            { fps: 10, qrbox: {width: 250, height: 150}, rememberLastUsedCamera: true },
-                            /* verbose= */ false);
-                        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-                    }
-                } catch (err) {
-                    console.error(err);
-                    alert("Erro ao tentar abrir a câmera.\n\nMotivos comuns:\n1. O navegador bloqueou o acesso à câmera.\n2. Você está acessando pelo celular via HTTP (sem cadeado de segurança). O celular exige HTTPS para ligar a câmera.\n\nDetalhe técnico: " + err.message);
-                }
-            });
-        }
+        // Emite um som de bip
+        let audio = new Audio('https://www.soundjay.com/buttons/sounds/beep-07a.mp3');
+        audio.play().catch(e => console.log('Bip bloqueado pelo navegador'));
+        
+        stopScanner();
 
-        if (btnFecharCamera) {
-            btnFecharCamera.addEventListener('click', stopScanner);
-        }
-    });
+        // Simula o Enter para buscar o produto
+        const event = new KeyboardEvent('keydown', { key: 'Enter' });
+        document.getElementById('input-busca-codigo').dispatchEvent(event);
+    }
+
+    function onScanFailure(error) {
+        // Ignora erros contínuos de falha na leitura
+    }
 </script>
 {% endblock %}
