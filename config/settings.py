@@ -1,4 +1,4 @@
-"""
+﻿"""
 Django settings for PDV SaaS Cloud.
 """
 import os
@@ -161,7 +161,7 @@ JAZZMIN_SETTINGS = {
     "copyright": "Luiz Gustavo Tech",
     "user_avatar": None,
     "topmenu_links": [
-        {"name": "In�cio",  "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "Início",  "url": "admin:index", "permissions": ["auth.view_user"]},
         {"model": "auth.User"},
     ],
     "usermenu_links": [
