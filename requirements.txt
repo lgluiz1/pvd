@@ -10,3 +10,4 @@ requests==2.32.3
 uuid==1.30
 whitenoise==6.8.2
 dj-database-url==3.1.2
+django-jazzmin==3.0.1

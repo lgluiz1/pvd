@@ -17,6 +17,7 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 
 # Application definition
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -140,7 +141,7 @@ REST_FRAMEWORK = {
 }
 
 # CORS
-CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ORIGINS', '').split(',') if not DEBUG else []
 
 # CSRF
@@ -150,3 +151,56 @@ CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'https://pvd.luizgustav
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/login/'
+
+JAZZMIN_SETTINGS = {
+    "site_title": "PDV Cloud Admin",
+    "site_header": "PDV Nuvem",
+    "site_brand": "PDV Admin",
+    "site_logo": None,
+    "welcome_sign": "Bem-vindo ao Painel PDV Cloud",
+    "copyright": "Luiz Gustavo Tech",
+    "user_avatar": None,
+    "topmenu_links": [
+        {"name": "Início",  "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"model": "auth.User"},
+    ],
+    "usermenu_links": [
+        {"name": "Suporte", "url": "https://pvd.luizgustavo.tech", "new_window": True, "icon": "fas fa-headset"},
+    ],
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "hide_apps": [],
+    "hide_models": [],
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "auth.Group": "fas fa-users",
+        "empresas.Empresa": "fas fa-building",
+        "empresas.PDVTerminal": "fas fa-desktop",
+        "produtos.Produto": "fas fa-box",
+        "produtos.Categoria": "fas fa-tags",
+        "clientes.Cliente": "fas fa-user-tie",
+        "vendas.Venda": "fas fa-shopping-cart",
+        "vendas.ItemVenda": "fas fa-receipt",
+        "caixa.SessaoCaixa": "fas fa-cash-register",
+        "caixa.Sangria": "fas fa-money-bill-wave",
+        "caixa.Suprimento": "fas fa-hand-holding-usd",
+        "financeiro.ContaFiado": "fas fa-book",
+        "financeiro.ParcelaFiado": "fas fa-file-invoice-dollar",
+        "financeiro.PagamentoFiado": "fas fa-money-check-alt",
+        "estoque.MovimentacaoEstoque": "fas fa-exchange-alt",
+        "core.Tenant": "fas fa-sitemap",
+    },
+    "default_icon_parents": "fas fa-chevron-circle-right",
+    "default_icon_children": "fas fa-circle",
+    "related_modal_active": False,
+    "custom_css": None,
+    "custom_js": None,
+    "show_ui_builder": True,
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "theme": "darkly",
+    "dark_mode_theme": "darkly",
+}
+
