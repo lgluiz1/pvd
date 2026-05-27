@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'auditoria',
     'sync',
     'relatorios',
+    'assinaturas',
 ]
 
 MIDDLEWARE = [
@@ -190,6 +191,9 @@ JAZZMIN_SETTINGS = {
         "financeiro.PagamentoFiado": "fas fa-money-check-alt",
         "estoque.MovimentacaoEstoque": "fas fa-exchange-alt",
         "core.Tenant": "fas fa-sitemap",
+        "assinaturas.PlanoEmpresa": "fas fa-file-contract",
+        "assinaturas.Fatura": "fas fa-file-invoice-dollar",
+        "assinaturas.ConfigEfi": "fas fa-cogs",
     },
     "default_icon_parents": "fas fa-chevron-circle-right",
     "default_icon_children": "fas fa-circle",
