@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+
+    <!-- Voltar -->
+    <a href="{% url 'assinaturas:portal_financeiro' %}" class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-primary-600 transition-colors">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i> Voltar ao Financeiro
+    </a>
+
+    <!-- Cabecalho da Fatura -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <div class="flex items-start justify-between mb-4">
+            <div>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ fatura.descricao }}</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ fatura.empresa.nome_fantasia }}</p>
+            </div>
+            <div>
+                {% if fatura.status == 'pago' %}
+                    <span class="inline-flex px-3 py-1 text-sm font-bold rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">PAGO</span>
+                {% elif fatura.status == 'pendente' %}
+                    <span class="inline-flex px-3 py-1 text-sm font-bold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">PENDENTE</span>
+                {% elif fatura.status == 'atrasado' %}
+                    <span class="inline-flex px-3 py-1 text-sm font-bold rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">ATRASADO</span>
+                {% else %}
+                    <span class="inline-flex px-3 py-1 text-sm font-bold rounded-full bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400">CANCELADA</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+                <p class="text-gray-400 text-xs uppercase tracking-wider">Emissao</p>
+                <p class="font-semibold text-gray-900 dark:text-white">{{ fatura.data_emissao|date:"d/m/Y" }}</p>
+            </div>
+            <div>
+                <p class="text-gray-400 text-xs uppercase tracking-wider">Vencimento</p>
+                <p class="font-semibold {% if fatura.esta_vencida %}text-red-600{% else %}text-gray-900 dark:text-white{% endif %}">{{ fatura.data_vencimento|date:"d/m/Y" }}</p>
+            </div>
+            <div>
+                <p class="text-gray-400 text-xs uppercase tracking-wider">Pagamento</p>
+                <p class="font-semibold text-gray-900 dark:text-white">{% if fatura.data_pagamento %}{{ fatura.data_pagamento|date:"d/m/Y" }}{% else %}-{% endif %}</p>
+            </div>
+            <div>
+                <p class="text-gray-400 text-xs uppercase tracking-wider">Forma</p>
+                <p class="font-semibold text-gray-900 dark:text-white">{% if fatura.forma_pagamento %}{{ fatura.get_forma_pagamento_display }}{% else %}-{% endif %}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Itens da Fatura -->
+    {% if itens %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Detalhamento</h3>
+        <table class="min-w-full text-sm">
+            <thead>
+                <tr class="bg-gray-50 dark:bg-gray-700/50">
+                    <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Qtd</th>
+                    <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Descricao</th>
+                    <th class="text-right px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Valor</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                {% for item in itens %}
+                <tr>
+                    <td class="px-4 py-3 text-gray-600 dark:text-gray-400">1</td>
+                    <td class="px-4 py-3 text-gray-900 dark:text-white">{{ item.descricao }}</td>
+                    <td class="px-4 py-3 text-right font-mono font-semibold text-gray-900 dark:text-white">R$ {{ item.valor|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="border-t-2 border-gray-200 dark:border-gray-600">
+                    <td colspan="2" class="px-4 py-3 font-bold text-gray-900 dark:text-white text-right">TOTAL</td>
+                    <td class="px-4 py-3 text-right font-bold text-lg text-primary-600">R$ {{ fatura.valor|floatformat:2 }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Acoes -->
+    <div class="flex justify-end gap-3">
+        {% if fatura.status == 'pago' %}
+        <a href="{% url 'assinaturas:download_recibo' fatura.id %}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-sm transition-colors">
+            <i data-lucide="download" class="w-4 h-4"></i> Baixar Recibo (PDF)
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    lucide.createIcons();
+</script>
+{% endblock %}

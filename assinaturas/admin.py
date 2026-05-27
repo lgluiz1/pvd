@@ -1,8 +1,33 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from django.utils import timezone
 from datetime import date
-from assinaturas.models import ConfigEfi, PlanoEmpresa, Fatura
+from assinaturas.models import ConfigEmail, ConfigEfi, PlanoEmpresa, ItemPlano, Fatura, ItemFatura
+
+
+# ─── Config Email (Singleton) ────────────────────────────────────────────
+@admin.register(ConfigEmail)
+class ConfigEmailAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'email_user', 'ativo')
+    fieldsets = (
+        ('Servidor SMTP', {
+            'fields': ('email_host', 'email_port', 'email_use_tls'),
+            'description': 'Dados do servidor de email para envio de cobrancas.',
+        }),
+        ('Credenciais', {
+            'fields': ('email_user', 'email_password', 'nome_remetente'),
+        }),
+        ('Status', {
+            'fields': ('ativo',),
+        }),
+    )
+
+    def has_add_permission(self, request):
+        if ConfigEmail.objects.exists():
+            return False
+        return super().has_add_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 # ─── Config Efi (Singleton) ──────────────────────────────────────────────
@@ -16,7 +41,6 @@ class ConfigEfiAdmin(admin.ModelAdmin):
         }),
         ('Configuracao PIX', {
             'fields': ('certificado_pix', 'chave_pix'),
-            'description': 'Para cobrar via PIX, faca upload do certificado .pem e informe sua chave.',
         }),
         ('Webhook e Status', {
             'fields': ('webhook_url', 'ativo'),
@@ -24,7 +48,6 @@ class ConfigEfiAdmin(admin.ModelAdmin):
     )
 
     def has_add_permission(self, request):
-        # Permitir adicionar somente se nao existir nenhum registro
         if ConfigEfi.objects.exists():
             return False
         return super().has_add_permission(request)
@@ -33,18 +56,27 @@ class ConfigEfiAdmin(admin.ModelAdmin):
         return False
 
 
+# ─── Itens do Plano (Inline) ─────────────────────────────────────────────
+class ItemPlanoInline(admin.TabularInline):
+    model = ItemPlano
+    extra = 1
+    fields = ('descricao', 'valor', 'recorrente', 'cobrado')
+    readonly_fields = ('cobrado',)
+
+
 # ─── Plano de Assinatura ─────────────────────────────────────────────────
 @admin.register(PlanoEmpresa)
 class PlanoEmpresaAdmin(admin.ModelAdmin):
-    list_display = ('empresa', 'valor_formatado', 'dia_vencimento', 'badge_isento', 'updated_at')
+    list_display = ('empresa', 'valor_mensal_display', 'valor_proximo_display', 'dia_vencimento', 'dias_antecedencia', 'badge_isento', 'updated_at')
     list_filter = ('isento', 'dia_vencimento')
     search_fields = ('empresa__nome_fantasia', 'empresa__cnpj')
     readonly_fields = ('created_at', 'updated_at')
     autocomplete_fields = ('empresa',)
+    inlines = [ItemPlanoInline]
 
     fieldsets = (
         (None, {
-            'fields': ('empresa', 'valor_mensal', 'dia_vencimento', 'isento'),
+            'fields': ('empresa', 'dia_vencimento', 'dias_antecedencia', 'isento'),
         }),
         ('Anotacoes', {
             'fields': ('observacoes',),
@@ -53,10 +85,16 @@ class PlanoEmpresaAdmin(admin.ModelAdmin):
     )
 
     @admin.display(description='Valor Mensal')
-    def valor_formatado(self, obj):
-        return f'R$ {obj.valor_mensal:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')
+    def valor_mensal_display(self, obj):
+        v = obj.valor_mensal_total
+        return f'R$ {v:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')
 
-    @admin.display(description='Status', boolean=False)
+    @admin.display(description='Proximo Mes')
+    def valor_proximo_display(self, obj):
+        v = obj.valor_proximo_mes
+        return f'R$ {v:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')
+
+    @admin.display(description='Status')
     def badge_isento(self, obj):
         if obj.isento:
             return format_html(
@@ -67,41 +105,47 @@ class PlanoEmpresaAdmin(admin.ModelAdmin):
         )
 
 
-# ─── Faturas ─────────────────────────────────────────────────────────────
-class FaturaAnexosInline(admin.StackedInline):
-    """Inline vazio, usado apenas para manter a estrutura."""
-    model = Fatura
+# ─── Itens da Fatura (Inline) ────────────────────────────────────────────
+class ItemFaturaInline(admin.TabularInline):
+    model = ItemFatura
     extra = 0
+    fields = ('descricao', 'valor')
 
 
+# ─── Faturas ─────────────────────────────────────────────────────────────
 @admin.register(Fatura)
 class FaturaAdmin(admin.ModelAdmin):
     list_display = (
         'empresa', 'descricao', 'valor_formatado',
-        'data_vencimento', 'data_pagamento',
+        'data_vencimento', 'data_pagamento', 'forma_pagamento',
         'badge_status', 'tem_boleto', 'tem_comprovante'
     )
-    list_filter = ('status', 'data_vencimento', 'empresa')
+    list_filter = ('status', 'forma_pagamento', 'data_vencimento', 'empresa')
     search_fields = ('empresa__nome_fantasia', 'descricao', 'empresa__cnpj')
     date_hierarchy = 'data_vencimento'
-    readonly_fields = ('created_at', 'updated_at', 'efi_charge_id', 'efi_pix_txid', 'efi_boleto_url', 'efi_qrcode_pix')
+    readonly_fields = ('created_at', 'updated_at', 'efi_charge_id', 'efi_pix_txid', 'efi_boleto_url', 'efi_qrcode_pix', 'email_lembrete_enviado', 'email_recibo_enviado')
     autocomplete_fields = ('empresa',)
     list_per_page = 30
+    inlines = [ItemFaturaInline]
 
     fieldsets = (
         ('Dados da Fatura', {
             'fields': ('empresa', 'descricao', 'valor', 'data_emissao', 'data_vencimento'),
         }),
         ('Pagamento', {
-            'fields': ('status', 'data_pagamento'),
+            'fields': ('status', 'forma_pagamento', 'data_pagamento'),
         }),
         ('Anexos', {
             'fields': ('arquivo_boleto', 'comprovante'),
         }),
+        ('Notificacoes', {
+            'fields': ('email_lembrete_enviado', 'email_recibo_enviado'),
+            'classes': ('collapse',),
+        }),
         ('Integracao Efi (Automatico)', {
             'fields': ('efi_charge_id', 'efi_pix_txid', 'efi_boleto_url', 'efi_qrcode_pix'),
             'classes': ('collapse',),
-            'description': 'Estes campos serao preenchidos automaticamente quando a integracao com a Efi estiver ativa.',
+            'description': 'Preenchidos automaticamente quando integrado com a Efi.',
         }),
         ('Observacoes', {
             'fields': ('observacoes',),
@@ -138,7 +182,6 @@ class FaturaAdmin(admin.ModelAdmin):
     def tem_comprovante(self, obj):
         return bool(obj.comprovante)
 
-    # ─── Acoes em lote ───
     @admin.action(description='Marcar selecionadas como PAGO')
     def marcar_como_pago(self, request, queryset):
         count = queryset.update(status='pago', data_pagamento=date.today())

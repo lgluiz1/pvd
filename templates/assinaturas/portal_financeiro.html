@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Cards de Resumo -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Status -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 rounded-lg flex items-center justify-center
+                    {% if tem_inadimplencia %}bg-red-100 dark:bg-red-900/30{% else %}bg-green-100 dark:bg-green-900/30{% endif %}">
+                    <i data-lucide="{% if tem_inadimplencia %}alert-triangle{% else %}check-circle{% endif %}"
+                       class="w-5 h-5 {% if tem_inadimplencia %}text-red-600{% else %}text-green-600{% endif %}"></i>
+                </div>
+                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Status da Assinatura</span>
+            </div>
+            {% if plano and plano.isento %}
+                <span class="inline-flex px-3 py-1 text-sm font-bold rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">ISENTO</span>
+            {% elif tem_inadimplencia %}
+                <span class="inline-flex px-3 py-1 text-sm font-bold rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">INADIMPLENTE</span>
+            {% else %}
+                <span class="inline-flex px-3 py-1 text-sm font-bold rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">ADIMPLENTE</span>
+            {% endif %}
+        </div>
+
+        <!-- Total Pendente -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                    <i data-lucide="clock" class="w-5 h-5 text-amber-600"></i>
+                </div>
+                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Pendente</span>
+            </div>
+            <p class="text-2xl font-bold text-amber-600">R$ {{ total_pendente|floatformat:2 }}</p>
+        </div>
+
+        <!-- Total Pago -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                    <i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i>
+                </div>
+                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Pago</span>
+            </div>
+            <p class="text-2xl font-bold text-green-600">R$ {{ total_pago|floatformat:2 }}</p>
+        </div>
+    </div>
+
+    <!-- Plano Atual -->
+    {% if plano %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <i data-lucide="file-text" class="w-5 h-5 text-primary-600"></i> Seu Plano
+        </h3>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50 dark:bg-gray-700/50">
+                        <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Item</th>
+                        <th class="text-center px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Tipo</th>
+                        <th class="text-right px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Valor</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    {% for item in plano.itens.all %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                        <td class="px-4 py-3 text-gray-900 dark:text-white">{{ item.descricao }}</td>
+                        <td class="px-4 py-3 text-center">
+                            {% if item.recorrente %}
+                                <span class="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Mensal</span>
+                            {% else %}
+                                <span class="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                                    {% if item.cobrado %}Cobrado{% else %}Pendente (Unica){% endif %}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono font-semibold text-gray-900 dark:text-white">R$ {{ item.valor|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="bg-gray-50 dark:bg-gray-700/50 border-t-2 border-gray-200 dark:border-gray-600">
+                        <td class="px-4 py-3 font-bold text-gray-900 dark:text-white" colspan="2">Valor Mensal Recorrente</td>
+                        <td class="px-4 py-3 text-right font-bold text-lg text-primary-600">R$ {{ plano.valor_mensal_total|floatformat:2 }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <p class="text-xs text-gray-400 mt-3">Vencimento todo dia <b>{{ plano.dia_vencimento }}</b> do mes.</p>
+    </div>
+    {% endif %}
+
+    <!-- Historico de Faturas -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <i data-lucide="receipt" class="w-5 h-5 text-primary-600"></i> Historico de Faturas
+        </h3>
+
+        {% if faturas %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50 dark:bg-gray-700/50">
+                        <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Descricao</th>
+                        <th class="text-center px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Vencimento</th>
+                        <th class="text-center px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Pagamento</th>
+                        <th class="text-right px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Valor</th>
+                        <th class="text-center px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Status</th>
+                        <th class="text-center px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Acoes</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    {% for fatura in faturas %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                        <td class="px-4 py-3">
+                            <a href="{% url 'assinaturas:detalhe_fatura' fatura.id %}" class="text-primary-600 hover:underline font-medium">
+                                {{ fatura.descricao }}
+                            </a>
+                        </td>
+                        <td class="px-4 py-3 text-center text-gray-600 dark:text-gray-400">{{ fatura.data_vencimento|date:"d/m/Y" }}</td>
+                        <td class="px-4 py-3 text-center text-gray-600 dark:text-gray-400">
+                            {% if fatura.data_pagamento %}{{ fatura.data_pagamento|date:"d/m/Y" }}{% else %}-{% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono font-semibold text-gray-900 dark:text-white">R$ {{ fatura.valor|floatformat:2 }}</td>
+                        <td class="px-4 py-3 text-center">
+                            {% if fatura.status == 'pago' %}
+                                <span class="inline-flex px-2.5 py-0.5 text-xs font-bold rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">PAGO</span>
+                            {% elif fatura.status == 'pendente' %}
+                                <span class="inline-flex px-2.5 py-0.5 text-xs font-bold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">PENDENTE</span>
+                            {% elif fatura.status == 'atrasado' %}
+                                <span class="inline-flex px-2.5 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">ATRASADO</span>
+                            {% else %}
+                                <span class="inline-flex px-2.5 py-0.5 text-xs font-bold rounded-full bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400">CANCELADA</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <a href="{% url 'assinaturas:detalhe_fatura' fatura.id %}" class="p-1.5 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Ver detalhes">
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                </a>
+                                {% if fatura.status == 'pago' %}
+                                <a href="{% url 'assinaturas:download_recibo' fatura.id %}" class="p-1.5 text-gray-400 hover:text-green-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Baixar Recibo PDF">
+                                    <i data-lucide="download" class="w-4 h-4"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-400 text-center py-8">Nenhuma fatura encontrada.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    lucide.createIcons();
+</script>
+{% endblock %}

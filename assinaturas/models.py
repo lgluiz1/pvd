@@ -4,11 +4,66 @@ from django.utils import timezone
 from datetime import date
 
 
+class ConfigEmail(models.Model):
+    """
+    Configuracao SMTP para envio de emails de cobranca.
+    Apenas 1 registro deve existir. Preencha pelo Django Admin.
+    """
+    email_host = models.CharField(
+        max_length=200, blank=True, default='',
+        verbose_name='Servidor SMTP',
+        help_text='Ex: smtp.gmail.com, smtp.office365.com'
+    )
+    email_port = models.PositiveIntegerField(
+        default=587,
+        verbose_name='Porta SMTP',
+        help_text='Geralmente 587 (TLS) ou 465 (SSL)'
+    )
+    email_user = models.CharField(
+        max_length=200, blank=True, default='',
+        verbose_name='Email Remetente',
+        help_text='Ex: cobranca@suaempresa.com.br'
+    )
+    email_password = models.CharField(
+        max_length=200, blank=True, default='',
+        verbose_name='Senha / App Password',
+        help_text='Senha do email ou App Password (Gmail requer App Password)'
+    )
+    email_use_tls = models.BooleanField(
+        default=True,
+        verbose_name='Usar TLS',
+        help_text='Ative para a maioria dos provedores (porta 587)'
+    )
+    nome_remetente = models.CharField(
+        max_length=100, blank=True, default='PDV Cloud - Cobrancas',
+        verbose_name='Nome do Remetente',
+        help_text='Nome que aparecera no email. Ex: PDV Cloud - Cobrancas'
+    )
+    ativo = models.BooleanField(
+        default=False,
+        verbose_name='Envio de Emails Ativo',
+        help_text='Marque somente apos configurar e testar os dados acima.'
+    )
+
+    class Meta:
+        verbose_name = 'Configuracao de Email'
+        verbose_name_plural = 'Configuracao de Email'
+
+    def __str__(self):
+        status = 'ATIVO' if self.ativo else 'INATIVO'
+        return f'Email SMTP ({self.email_host}) - {status}'
+
+    def save(self, *args, **kwargs):
+        if not self.pk and ConfigEmail.objects.exists():
+            existing = ConfigEmail.objects.first()
+            self.pk = existing.pk
+        super().save(*args, **kwargs)
+
+
 class ConfigEfi(models.Model):
     """
     Configuracoes de integracao com a Efi (antiga Gerencianet).
-    Apenas 1 registro deve existir. Quando voce criar sua aplicacao na Efi,
-    basta preencher os campos abaixo pelo Django Admin.
+    Apenas 1 registro deve existir.
     """
     client_id = models.CharField(
         max_length=200, blank=True, default='',
@@ -34,12 +89,12 @@ class ConfigEfi(models.Model):
     chave_pix = models.CharField(
         max_length=100, blank=True, default='',
         verbose_name='Chave PIX cadastrada na Efi',
-        help_text='Sua chave PIX registrada na conta Efi (CPF, CNPJ, email ou aleatoria).'
+        help_text='Sua chave PIX registrada na conta Efi.'
     )
     webhook_url = models.URLField(
         blank=True, default='',
         verbose_name='URL do Webhook',
-        help_text='URL que a Efi chamara para notificar pagamentos. Ex: https://pvd.luizgustavo.tech/api/efi/webhook/'
+        help_text='URL que a Efi chamara para notificar pagamentos.'
     )
     ativo = models.BooleanField(
         default=False,
@@ -57,7 +112,6 @@ class ConfigEfi(models.Model):
         return f'Efi ({modo}) - {status}'
 
     def save(self, *args, **kwargs):
-        # Garantir que so exista 1 registro
         if not self.pk and ConfigEfi.objects.exists():
             existing = ConfigEfi.objects.first()
             self.pk = existing.pk
@@ -66,7 +120,8 @@ class ConfigEfi(models.Model):
 
 class PlanoEmpresa(models.Model):
     """
-    Define o valor mensal e dia de vencimento para cada empresa cliente.
+    Define o plano de assinatura de cada empresa cliente.
+    Os itens detalhados ficam em ItemPlano.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     empresa = models.OneToOneField(
@@ -75,15 +130,15 @@ class PlanoEmpresa(models.Model):
         related_name='plano_assinatura',
         verbose_name='Empresa'
     )
-    valor_mensal = models.DecimalField(
-        max_digits=10, decimal_places=2, default=0,
-        verbose_name='Valor Mensal (R$)',
-        help_text='Valor acordado com o cliente para cobranca mensal.'
-    )
     dia_vencimento = models.PositiveIntegerField(
         default=10,
         verbose_name='Dia do Vencimento',
         help_text='Dia do mes em que a fatura vence (1 a 28).'
+    )
+    dias_antecedencia = models.PositiveIntegerField(
+        default=7,
+        verbose_name='Dias de Antecedencia',
+        help_text='Quantos dias antes do vencimento a fatura e gerada e o email de lembrete enviado.'
     )
     isento = models.BooleanField(
         default=False,
@@ -103,22 +158,91 @@ class PlanoEmpresa(models.Model):
         verbose_name_plural = 'Planos de Assinatura'
         ordering = ['empresa__nome_fantasia']
 
+    @property
+    def valor_mensal_total(self):
+        """Soma de todos os itens recorrentes."""
+        return self.itens.filter(recorrente=True).aggregate(
+            total=models.Sum('valor')
+        )['total'] or 0
+
+    @property
+    def valor_proximo_mes(self):
+        """Soma dos itens recorrentes + itens unicos nao cobrados."""
+        recorrentes = self.itens.filter(recorrente=True).aggregate(
+            total=models.Sum('valor')
+        )['total'] or 0
+        unicos = self.itens.filter(recorrente=False, cobrado=False).aggregate(
+            total=models.Sum('valor')
+        )['total'] or 0
+        return recorrentes + unicos
+
     def __str__(self):
         if self.isento:
             return f'{self.empresa.nome_fantasia} - ISENTO'
-        return f'{self.empresa.nome_fantasia} - R$ {self.valor_mensal}/mes (dia {self.dia_vencimento})'
+        return f'{self.empresa.nome_fantasia} - R$ {self.valor_mensal_total}/mes (dia {self.dia_vencimento})'
+
+
+class ItemPlano(models.Model):
+    """
+    Item individual de cobranca dentro de um plano.
+    Pode ser recorrente (mensal) ou unico (cobra 1x).
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    plano = models.ForeignKey(
+        PlanoEmpresa,
+        on_delete=models.CASCADE,
+        related_name='itens',
+        verbose_name='Plano'
+    )
+    descricao = models.CharField(
+        max_length=200,
+        verbose_name='Descricao',
+        help_text='Ex: Sistema PDV, Bipador, Impressora, Manutencao'
+    )
+    valor = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        verbose_name='Valor (R$)'
+    )
+    recorrente = models.BooleanField(
+        default=True,
+        verbose_name='Cobranca Mensal?',
+        help_text='Sim = cobra todo mes. Nao = cobra apenas uma vez no proximo mes.'
+    )
+    cobrado = models.BooleanField(
+        default=False,
+        verbose_name='Ja Cobrado?',
+        help_text='Para itens de cobranca unica. Marca automaticamente apos gerar a fatura.'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
+
+    class Meta:
+        verbose_name = 'Item do Plano'
+        verbose_name_plural = 'Itens do Plano'
+        ordering = ['-recorrente', 'descricao']
+
+    def __str__(self):
+        tipo = 'Mensal' if self.recorrente else 'Unica'
+        return f'{self.descricao} - R$ {self.valor} ({tipo})'
 
 
 class Fatura(models.Model):
     """
     Fatura individual gerada para uma empresa.
-    Pode ser gerada manualmente ou futuramente de forma automatica pela API Efi.
     """
     STATUS_CHOICES = [
         ('pendente', 'Pendente'),
         ('pago', 'Pago'),
         ('atrasado', 'Atrasado'),
         ('cancelada', 'Cancelada'),
+    ]
+
+    FORMA_PAGAMENTO_CHOICES = [
+        ('', 'Nao informado'),
+        ('pix', 'PIX'),
+        ('boleto', 'Boleto'),
+        ('cartao', 'Cartao de Credito'),
+        ('transferencia', 'Transferencia'),
+        ('outro', 'Outro'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -135,7 +259,7 @@ class Fatura(models.Model):
     )
     valor = models.DecimalField(
         max_digits=10, decimal_places=2,
-        verbose_name='Valor (R$)'
+        verbose_name='Valor Total (R$)'
     )
     data_emissao = models.DateField(
         default=date.today,
@@ -154,6 +278,12 @@ class Fatura(models.Model):
         default='pendente',
         verbose_name='Status'
     )
+    forma_pagamento = models.CharField(
+        max_length=20,
+        choices=FORMA_PAGAMENTO_CHOICES,
+        blank=True, default='',
+        verbose_name='Forma de Pagamento'
+    )
 
     # Anexos
     arquivo_boleto = models.FileField(
@@ -170,31 +300,14 @@ class Fatura(models.Model):
     )
 
     # Campos para futura integracao com Efi
-    efi_charge_id = models.CharField(
-        max_length=100, blank=True, default='',
-        verbose_name='ID da Cobranca (Efi)',
-        help_text='Preenchido automaticamente quando integrado com a Efi.'
-    )
-    efi_pix_txid = models.CharField(
-        max_length=100, blank=True, default='',
-        verbose_name='TxID PIX (Efi)',
-        help_text='Preenchido automaticamente quando cobrado via PIX Efi.'
-    )
-    efi_boleto_url = models.URLField(
-        blank=True, default='',
-        verbose_name='Link do Boleto (Efi)',
-        help_text='URL do boleto gerado pela Efi.'
-    )
-    efi_qrcode_pix = models.TextField(
-        blank=True, default='',
-        verbose_name='QR Code PIX (Efi)',
-        help_text='Payload do QR Code PIX gerado pela Efi.'
-    )
+    efi_charge_id = models.CharField(max_length=100, blank=True, default='', verbose_name='ID Cobranca (Efi)')
+    efi_pix_txid = models.CharField(max_length=100, blank=True, default='', verbose_name='TxID PIX (Efi)')
+    efi_boleto_url = models.URLField(blank=True, default='', verbose_name='Link Boleto (Efi)')
+    efi_qrcode_pix = models.TextField(blank=True, default='', verbose_name='QR Code PIX (Efi)')
 
-    observacoes = models.TextField(
-        blank=True, default='',
-        verbose_name='Observacoes'
-    )
+    observacoes = models.TextField(blank=True, default='', verbose_name='Observacoes')
+    email_lembrete_enviado = models.BooleanField(default=False, verbose_name='Lembrete Enviado')
+    email_recibo_enviado = models.BooleanField(default=False, verbose_name='Recibo Enviado')
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Atualizado em')
@@ -210,16 +323,36 @@ class Fatura(models.Model):
 
     @property
     def esta_vencida(self):
-        """Retorna True se a fatura esta vencida e nao paga."""
         if self.status in ('pago', 'cancelada'):
             return False
         return self.data_vencimento < date.today()
 
     def save(self, *args, **kwargs):
-        # Atualizar status automaticamente para 'atrasado' se venceu
         if self.status == 'pendente' and self.data_vencimento < date.today():
             self.status = 'atrasado'
-        # Se marcou data de pagamento, muda para pago
-        if self.data_pagamento and self.status != 'cancelada':
+        if self.data_pagamento and self.status not in ('cancelada',):
             self.status = 'pago'
         super().save(*args, **kwargs)
+
+
+class ItemFatura(models.Model):
+    """
+    Snapshot dos itens cobrados em uma fatura especifica.
+    Permite que o recibo mostre exatamente o que foi pago.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    fatura = models.ForeignKey(
+        Fatura,
+        on_delete=models.CASCADE,
+        related_name='itens',
+        verbose_name='Fatura'
+    )
+    descricao = models.CharField(max_length=200, verbose_name='Descricao')
+    valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Valor (R$)')
+
+    class Meta:
+        verbose_name = 'Item da Fatura'
+        verbose_name_plural = 'Itens da Fatura'
+
+    def __str__(self):
+        return f'{self.descricao} - R$ {self.valor}'
