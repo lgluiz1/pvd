@@ -20,19 +20,25 @@ def _calcular_data_vencimento(dia_vencimento, referencia=None):
     if referencia is None:
         referencia = date.today()
 
-    # Proximo mes
-    if referencia.month == 12:
-        ano = referencia.year + 1
-        mes = 1
-    else:
-        ano = referencia.year
-        mes = referencia.month + 1
-
-    # Ajustar dia se nao existe no mes
+    # Tenta usar o mes atual primeiro
+    ano = referencia.year
+    mes = referencia.month
     ultimo_dia = calendar.monthrange(ano, mes)[1]
     dia = min(dia_vencimento, ultimo_dia)
+    vencimento_atual = date(ano, mes, dia)
 
-    return date(ano, mes, dia)
+    # Se o vencimento deste mes ja passou, calcula para o proximo mes
+    if vencimento_atual < referencia:
+        if mes == 12:
+            ano += 1
+            mes = 1
+        else:
+            mes += 1
+        ultimo_dia = calendar.monthrange(ano, mes)[1]
+        dia = min(dia_vencimento, ultimo_dia)
+        return date(ano, mes, dia)
+
+    return vencimento_atual
 
 
 def _gerar_descricao_fatura(data_vencimento):
