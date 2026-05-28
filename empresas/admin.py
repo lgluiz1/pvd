@@ -20,7 +20,8 @@ class PlanoInline(admin.StackedInline):
     model = PlanoEmpresa
     extra = 0
     max_num = 1
-    fields = ('valor_mensal', 'dia_vencimento', 'isento', 'observacoes')
+    fields = ('valor_mensal_total', 'dia_vencimento', 'dias_antecedencia', 'isento', 'observacoes')
+    readonly_fields = ('valor_mensal_total',)
 
 
 @admin.register(Empresa)
