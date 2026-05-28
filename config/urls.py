@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.generic import TemplateView
 from assinaturas.webhook_views import efi_notification_webhook
 
 urlpatterns = [
@@ -24,6 +25,9 @@ urlpatterns = [
     path('api/efi/webhook/', efi_notification_webhook, name='efi_webhook'),
     # API
     path('api/', include('core.api_urls')),
+    
+    # PWA Service Worker
+    path('sw.js', TemplateView.as_view(template_name='sw.js', content_type='application/javascript'), name='sw.js'),
 ]
 
 if settings.DEBUG:
