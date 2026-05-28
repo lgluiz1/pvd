@@ -34,7 +34,7 @@ class EmpresaAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            'fields': ('id', 'razao_social', 'nome_fantasia', 'cnpj', 'token', 'telefone', 'email', 'logo', 'ativo'),
+            'fields': ('id', 'razao_social', 'nome_fantasia', 'cnpj', 'token', 'telefone', 'email', 'email_faturamento', 'logo', 'ativo'),
         }),
         ('Endereco para Boleto (Efi)', {
             'fields': ('endereco_rua', 'endereco_numero', 'endereco_complemento', 'endereco_bairro', 'endereco_cep', 'endereco_cidade', 'endereco_uf'),

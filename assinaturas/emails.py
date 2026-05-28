@@ -7,7 +7,11 @@ from assinaturas.recibo_pdf import gerar_recibo_pdf
 
 
 def get_admins_emails(empresa):
-    """Retorna lista de emails dos usuarios admin vinculados a empresa."""
+    """Retorna lista de emails para envio da fatura (email de faturamento da empresa ou admins)."""
+    if empresa.email_faturamento:
+        return [empresa.email_faturamento]
+    
+    # Fallback: se não tiver email de faturamento, busca os admins
     from usuarios.models import Usuario
     admins = Usuario.objects.filter(
         empresa=empresa,

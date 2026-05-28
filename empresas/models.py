@@ -17,7 +17,8 @@ class Empresa(BaseModel):
         verbose_name='Token API'
     )
     telefone = models.CharField(max_length=20, blank=True, verbose_name='Telefone')
-    email = models.EmailField(blank=True, verbose_name='E-mail')
+    email = models.EmailField(blank=True, verbose_name='E-mail Principal')
+    email_faturamento = models.EmailField(blank=True, verbose_name='E-mail de Faturamento', help_text='E-mail que receberá os avisos e boletos da assinatura do PDV Cloud')
     endereco = models.TextField(blank=True, verbose_name='Endereço')
     logo = models.ImageField(upload_to='empresas/logos/', blank=True, null=True)
     ativo = models.BooleanField(default=True, verbose_name='Ativa')
