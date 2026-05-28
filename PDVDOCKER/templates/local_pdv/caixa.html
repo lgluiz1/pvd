@@ -296,10 +296,15 @@
                         <span class="font-bold text-sm">Crédito</span>
                         <kbd class="px-2 py-0.5 bg-gray-900 border border-gray-700 text-[10px] rounded text-gray-400 font-mono">Teclado: 3</kbd>
                     </button>
-                    <button onclick="selectPaymentMethod('fiado')" id="btn-pay-fiado" class="p-4 bg-gray-800 border-2 border-transparent hover:border-blue-500 rounded-xl flex flex-col items-center gap-2 text-gray-200 transition-all">
+                    <button onclick="selectPaymentMethod('pix')" id="btn-pay-pix" class="p-4 bg-gray-800 border-2 border-transparent hover:border-emerald-500 rounded-xl flex flex-col items-center gap-2 text-gray-200 transition-all {% if not mp_configurado %}opacity-40 cursor-not-allowed{% endif %}" {% if not mp_configurado %}disabled title="PIX não configurado. Sincronize o Mercado Pago no Cloud."{% endif %}>
+                        <i data-lucide="qr-code" class="w-8 h-8 text-emerald-400"></i>
+                        <span class="font-bold text-sm">PIX {% if not mp_configurado %}<span class="text-[9px] text-red-400">(não config.)</span>{% endif %}</span>
+                        <kbd class="px-2 py-0.5 bg-gray-900 border border-gray-700 text-[10px] rounded text-gray-400 font-mono">Teclado: 4</kbd>
+                    </button>
+                    <button onclick="selectPaymentMethod('fiado')" id="btn-pay-fiado" class="p-4 bg-gray-800 border-2 border-transparent hover:border-blue-500 rounded-xl flex flex-col items-center gap-2 text-gray-200 transition-all col-span-2">
                         <i data-lucide="users" class="w-8 h-8 text-yellow-500"></i>
                         <span class="font-bold text-sm">Conta Fiado / NFC</span>
-                        <kbd class="px-2 py-0.5 bg-gray-900 border border-gray-700 text-[10px] rounded text-gray-400 font-mono">Teclado: 4</kbd>
+                        <kbd class="px-2 py-0.5 bg-gray-900 border border-gray-700 text-[10px] rounded text-gray-400 font-mono">Teclado: 5</kbd>
                     </button>
                 </div>
 
@@ -388,6 +393,54 @@
                 <div class="mt-6 flex justify-end gap-3">
                     <button type="button" onclick="closeConfigModal()" class="px-4 py-2 bg-gray-800 text-sm font-semibold text-gray-300 rounded-lg hover:bg-gray-700">Fechar</button>
                     <button type="button" onclick="saveIntegrationConfig()" class="px-6 py-2 bg-blue-600 text-sm font-semibold text-white rounded-lg hover:bg-blue-700 shadow-md shadow-blue-500/20">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 5: PIX QR Code -->
+    <div id="pix-modal" class="hidden fixed inset-0 z-[60] overflow-y-auto" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-black bg-opacity-80 transition-opacity"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block align-bottom bg-slate-900 rounded-2xl border border-emerald-500/30 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md w-full p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i data-lucide="qr-code" class="w-5 h-5 text-emerald-400"></i> Pagamento via PIX
+                    </h3>
+                    <button onclick="cancelPixPayment()" class="text-gray-400 hover:text-red-400 transition-colors">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                
+                <div class="flex flex-col items-center">
+                    <p class="text-sm text-gray-400 mb-4 text-center">Escaneie o QR Code com o app do banco do cliente.</p>
+                    
+                    <!-- QR Code -->
+                    <div class="bg-white p-3 rounded-xl shadow-lg mb-4">
+                        <img id="pix-qr-image" src="" alt="QR Code PIX" class="w-52 h-52 object-contain">
+                    </div>
+                    
+                    <p id="pix-valor-display" class="text-2xl font-black text-emerald-400 font-mono mb-4">R$ 0,00</p>
+                    
+                    <!-- Copia e Cola -->
+                    <div class="w-full mb-4">
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">PIX Copia e Cola:</label>
+                        <div class="flex">
+                            <input type="text" readonly id="pix-copy-paste" class="w-full text-[10px] font-mono bg-gray-950 border border-gray-800 rounded-l-lg p-2 text-gray-400 outline-none">
+                            <button onclick="copyPixCode()" class="bg-gray-800 hover:bg-gray-700 border border-l-0 border-gray-800 rounded-r-lg px-3 flex items-center justify-center transition-colors">
+                                <i data-lucide="copy" class="w-4 h-4 text-gray-400"></i>
+                            </button>
+                        </div>
+                        <p id="pix-copied-msg" class="hidden text-emerald-400 text-xs mt-1 text-center font-medium">Código copiado!</p>
+                    </div>
+                    
+                    <!-- Status -->
+                    <div class="flex flex-col items-center gap-2 text-emerald-400">
+                        <i data-lucide="loader-2" class="w-6 h-6 animate-spin"></i>
+                        <span class="text-sm font-medium">Aguardando pagamento...</span>
+                        <p id="pix-timer" class="text-xs text-gray-500 font-mono">10:00</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -517,13 +570,14 @@
                 });
             }
 
-            // Atalhos dentro do modal de pagamento (1, 2, 3, 4)
+            // Atalhos dentro do modal de pagamento (1, 2, 3, 4, 5)
             const paymentModal = document.getElementById('payment-modal');
             if (!paymentModal.classList.contains('hidden') && !isInputActive) {
                 if (event.key === '1') { event.preventDefault(); selectPaymentMethod('dinheiro'); }
                 if (event.key === '2') { event.preventDefault(); selectPaymentMethod('debito'); }
                 if (event.key === '3') { event.preventDefault(); selectPaymentMethod('credito'); }
-                if (event.key === '4') { event.preventDefault(); selectPaymentMethod('fiado'); }
+                if (event.key === '4') { event.preventDefault(); selectPaymentMethod('pix'); }
+                if (event.key === '5') { event.preventDefault(); selectPaymentMethod('fiado'); }
             }
         });
 
@@ -748,6 +802,9 @@
                     selectPaymentMethod('credito');
                 } else if (event.key === '4') {
                     event.preventDefault();
+                    selectPaymentMethod('pix');
+                } else if (event.key === '5') {
+                    event.preventDefault();
                     selectPaymentMethod('fiado');
                 }
             }
@@ -834,12 +891,14 @@
             selectedPaymentMethod = method;
             
             // Destaque visual
-            ['dinheiro', 'debito', 'credito', 'fiado'].forEach(m => {
+            ['dinheiro', 'debito', 'credito', 'pix', 'fiado'].forEach(m => {
                 const btn = document.getElementById(`btn-pay-${m}`);
-                if (m === method) {
-                    btn.classList.add('border-blue-500');
-                } else {
-                    btn.classList.remove('border-blue-500');
+                if (btn) {
+                    if (m === method) {
+                        btn.classList.add('border-blue-500');
+                    } else {
+                        btn.classList.remove('border-blue-500');
+                    }
                 }
             });
 
@@ -919,6 +978,15 @@
 
             const total = parseFloat(document.getElementById('label-total').textContent.replace('R$', '').replace(/\./g, '').replace(',', '.').trim());
 
+            if (selectedPaymentMethod === 'pix') {
+                iniciarPagamentoPix(total);
+                return;
+            }
+
+            processarFinalizacaoVenda(total);
+        }
+
+        function processarFinalizacaoVenda(total) {
             // Payload da venda
             const payload = {
                 total: total,
@@ -976,6 +1044,112 @@
                 showUiAlert('Erro de conexão ou gravação no banco de dados local.');
             });
         }
+
+        // ------------------ FLUXO MERCADO PAGO PIX ------------------
+
+        let pixPollingInterval = null;
+        let pixTimeRemaining = 600; // 10 minutos
+        let pixTimerInterval = null;
+
+        function iniciarPagamentoPix(total) {
+            // Esconde modal de pagamento principal, mostra o do PIX
+            closePaymentModal();
+            document.getElementById('pix-modal').classList.remove('hidden');
+            
+            // UI de loading
+            document.getElementById('pix-valor-display').textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+            document.getElementById('pix-qr-image').src = '';
+            document.getElementById('pix-copy-paste').value = 'Gerando PIX...';
+            
+            fetch('/pix/gerar/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ valor: total, descricao: `Venda PDV - ${cartItems.length} itens` })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    // Exibe QR Code
+                    document.getElementById('pix-qr-image').src = `data:image/png;base64,${res.qr_code_base64}`;
+                    document.getElementById('pix-copy-paste').value = res.qr_code;
+                    
+                    // Inicia Polling (3s) e Timer
+                    iniciarTimerPix();
+                    pixPollingInterval = setInterval(() => consultarStatusPix(res.payment_id, total), 3000);
+                } else {
+                    cancelPixPayment();
+                    showUiAlert(res.error || 'Erro ao gerar PIX.');
+                    openPaymentModal();
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                cancelPixPayment();
+                showUiAlert('Erro de conexão ao gerar PIX.');
+                openPaymentModal();
+            });
+        }
+
+        function consultarStatusPix(paymentId, total) {
+            fetch(`/pix/status/?payment_id=${paymentId}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success && res.status === 'approved') {
+                        // Pagamento confirmado!
+                        cancelPixPayment(false); // Limpa intervals sem fechar modal
+                        document.getElementById('pix-modal').classList.add('hidden');
+                        
+                        showUiAlert('Pagamento PIX confirmado com sucesso!');
+                        
+                        // Processa a venda final
+                        setTimeout(() => {
+                            processarFinalizacaoVenda(total);
+                        }, 500);
+                    }
+                })
+                .catch(err => console.error('Erro no polling do PIX', err));
+        }
+
+        function iniciarTimerPix() {
+            pixTimeRemaining = 600;
+            const timerEl = document.getElementById('pix-timer');
+            
+            pixTimerInterval = setInterval(() => {
+                pixTimeRemaining--;
+                const m = Math.floor(pixTimeRemaining / 60).toString().padStart(2, '0');
+                const s = (pixTimeRemaining % 60).toString().padStart(2, '0');
+                timerEl.textContent = `${m}:${s}`;
+                
+                if (pixTimeRemaining <= 0) {
+                    cancelPixPayment();
+                    showUiAlert('Tempo limite do PIX expirou.');
+                    openPaymentModal();
+                }
+            }, 1000);
+        }
+
+        function cancelPixPayment(hideModal = true) {
+            if (pixPollingInterval) clearInterval(pixPollingInterval);
+            if (pixTimerInterval) clearInterval(pixTimerInterval);
+            pixPollingInterval = null;
+            pixTimerInterval = null;
+            
+            if (hideModal) {
+                document.getElementById('pix-modal').classList.add('hidden');
+            }
+        }
+
+        function copyPixCode() {
+            const input = document.getElementById('pix-copy-paste');
+            input.select();
+            document.execCommand('copy');
+            
+            const msg = document.getElementById('pix-copied-msg');
+            msg.classList.remove('hidden');
+            setTimeout(() => msg.classList.add('hidden'), 2000);
+        }
+
+        // ------------------ IMPRESSÃO DE CUPOM ------------------
 
         function imprimirCupom(venda_id, itens, total, metodo, cliente) {
             const printWindow = window.open('', '_blank', 'width=400,height=600');

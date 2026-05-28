@@ -5,8 +5,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from local_pdv.models import ProdutoLocal, ClienteLocal, VendaLocal, ItemVendaLocal, ConfigLocal, SessaoCaixaLocal
-from local_pdv.sync_engine import pull_snapshot_from_cloud, push_sales_to_cloud, get_config
+from local_pdv.models import ProdutoLocal, ClienteLocal, VendaLocal, ItemVendaLocal, ConfigLocal, SessaoCaixaLocal, PagamentoPix
+from local_pdv.sync_engine import pull_snapshot_from_cloud, push_sales_to_cloud, get_config, pull_mp_config
 
 def login_view(request):
     """Página de Login Offline/Local do Operador."""
@@ -59,6 +59,7 @@ def caixa_home(request):
         'config': config,
         'produtos_estoque_baixo': produtos_estoque_baixo,
         'sessao_aberta': sessao_aberta,
+        'mp_configurado': config.mp_configurado,
     })
 
 
@@ -304,3 +305,92 @@ def ajax_save_config(request):
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
     return JsonResponse({'error': 'Método inválido'}, status=400)
+
+
+@csrf_exempt
+@login_required(login_url='login')
+def ajax_gerar_pix(request):
+    """Gera um pagamento PIX via Mercado Pago."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Metodo invalido'}, status=400)
+
+    from local_pdv.mp_service import gerar_pix
+
+    try:
+        data = json.loads(request.body)
+        valor = float(data.get('valor', 0))
+        descricao = data.get('descricao', 'Venda PDV')
+
+        if valor <= 0:
+            return JsonResponse({'success': False, 'error': 'Valor invalido.'})
+
+        config = get_config()
+        if not config.mp_configurado:
+            return JsonResponse({'success': False, 'error': 'Mercado Pago nao configurado. Sincronize com o Cloud primeiro.'})
+
+        ok, resultado = gerar_pix(valor, descricao, config.mp_access_token)
+
+        if ok:
+            # Salvar registro local
+            pag = PagamentoPix.objects.create(
+                mp_payment_id=resultado['payment_id'],
+                valor=valor,
+                qr_code=resultado.get('qr_code', ''),
+                qr_code_base64=resultado.get('qr_code_base64', ''),
+                status='pending',
+            )
+
+            return JsonResponse({
+                'success': True,
+                'payment_id': resultado['payment_id'],
+                'qr_code': resultado.get('qr_code', ''),
+                'qr_code_base64': resultado.get('qr_code_base64', ''),
+            })
+        else:
+            return JsonResponse({'success': False, 'error': str(resultado)})
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required(login_url='login')
+def ajax_status_pix(request):
+    """Consulta o status de um pagamento PIX no Mercado Pago."""
+    from local_pdv.mp_service import consultar_pagamento
+
+    payment_id = request.GET.get('payment_id', '')
+    if not payment_id:
+        return JsonResponse({'error': 'payment_id obrigatorio'}, status=400)
+
+    config = get_config()
+    if not config.mp_configurado:
+        return JsonResponse({'success': False, 'error': 'MP nao configurado.'})
+
+    ok, dados = consultar_pagamento(payment_id, config.mp_access_token)
+
+    if ok:
+        status = dados.get('status', '')
+
+        # Se aprovado, atualizar registro local
+        if status == 'approved':
+            PagamentoPix.objects.filter(mp_payment_id=payment_id).update(status='approved')
+
+        return JsonResponse({
+            'success': True,
+            'status': status,
+            'status_detail': dados.get('status_detail', ''),
+        })
+    else:
+        return JsonResponse({'success': False, 'error': str(dados)})
+
+
+@login_required(login_url='login')
+def ajax_sync_mp(request):
+    """Forca sincronizacao das credenciais MP do Cloud."""
+    ok, msg = pull_mp_config()
+    config = get_config()
+    return JsonResponse({
+        'success': ok,
+        'message': msg,
+        'mp_configurado': config.mp_configurado,
+    })

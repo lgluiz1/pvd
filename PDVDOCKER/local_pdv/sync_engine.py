@@ -94,6 +94,12 @@ def pull_snapshot_from_cloud():
 
         config.ultimo_sync = timezone.now()
         config.save()
+
+        # Puxar credenciais MP automaticamente junto com o sync
+        try:
+            pull_mp_config()
+        except Exception:
+            pass  # Nao bloquear o sync principal se MP falhar
         
         return True, f"Sincronização concluída! {produtos_sincronizados} produtos, {clientes_sincronizados} clientes e {usuarios_sincronizados} operadores sincronizados."
 
@@ -165,3 +171,34 @@ def push_sales_to_cloud():
             return False, f"Nuvem recusou o sincronismo: {response.text}"
     except requests.exceptions.RequestException as e:
         return False, f"Sem internet ou erro ao sincronizar vendas: {str(e)}"
+
+
+def pull_mp_config():
+    """Puxa configuracoes do Mercado Pago do Cloud e salva localmente."""
+    config = get_config()
+    if not config.api_token:
+        return False, "Token de API nao configurado."
+
+    url = f"{config.api_cloud_url.rstrip('/')}/api/sync/mp-config/"
+    headers = {
+        "Authorization": f"Token {config.api_token}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code != 200:
+            return False, f"Erro ao buscar config MP ({response.status_code})"
+
+        data = response.json()
+        token_mp = data.get('mp_access_token', '')
+
+        if token_mp:
+            config.mp_access_token = token_mp
+            config.save()
+            return True, "Credenciais do Mercado Pago sincronizadas!"
+        else:
+            return False, "Mercado Pago nao configurado no Cloud."
+
+    except requests.exceptions.RequestException as e:
+        return False, f"Erro de conexao: {str(e)}"

@@ -77,6 +77,13 @@ class Empresa(BaseModel):
     pix_nome = models.CharField(max_length=100, blank=True, verbose_name='Nome Beneficiário PIX')
     pix_cidade = models.CharField(max_length=50, blank=True, verbose_name='Cidade PIX')
 
+    # Mercado Pago (PIX para vendas no PDV)
+    mp_access_token = models.CharField(
+        max_length=300, blank=True, default='',
+        verbose_name='Access Token Mercado Pago',
+        help_text='Token de produção do Mercado Pago. Obtido em: mercadopago.com.br/developers/panel. Usado pelos PDV locais para gerar PIX de vendas.'
+    )
+
     class Meta:
         verbose_name = 'Empresa'
         verbose_name_plural = 'Empresas'

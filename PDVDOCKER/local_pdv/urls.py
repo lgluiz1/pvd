@@ -13,4 +13,8 @@ urlpatterns = [
     path('sync-pull/', views.ajax_sync_snapshot, name='sync_pull'),
     path('sync-push/', views.ajax_sync_push, name='sync_push'),
     path('save-config/', views.ajax_save_config, name='save_config'),
+    # Mercado Pago PIX
+    path('pix/gerar/', views.ajax_gerar_pix, name='gerar_pix'),
+    path('pix/status/', views.ajax_status_pix, name='status_pix'),
+    path('sync-mp/', views.ajax_sync_mp, name='sync_mp'),
 ]

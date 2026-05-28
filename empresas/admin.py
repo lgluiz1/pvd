@@ -52,6 +52,11 @@ class EmpresaAdmin(admin.ModelAdmin):
             'fields': ('pix_chave', 'pix_tipo', 'pix_nome', 'pix_cidade'),
             'classes': ('collapse',),
         }),
+        ('Mercado Pago (PIX nos PDVs)', {
+            'fields': ('mp_access_token',),
+            'classes': ('collapse',),
+            'description': 'Access Token de producao do Mercado Pago. Todos os PDV locais desta empresa usarao este token para gerar PIX de vendas.',
+        }),
         ('Sistema', {
             'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',),

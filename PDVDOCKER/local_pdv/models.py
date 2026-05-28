@@ -88,6 +88,36 @@ class ConfigLocal(models.Model):
     api_token = models.CharField(max_length=128, blank=True)
     api_cloud_url = models.CharField(max_length=255, default='http://localhost:8000')
     ultimo_sync = models.DateTimeField(blank=True, null=True)
+    # Mercado Pago (puxado do Cloud)
+    mp_access_token = models.CharField(max_length=300, blank=True, default='')
 
     def __str__(self):
         return "Configuração do POS Local"
+
+    @property
+    def mp_configurado(self):
+        return bool(self.mp_access_token)
+
+
+class PagamentoPix(models.Model):
+    """Rastreia pagamentos PIX pendentes gerados via Mercado Pago."""
+    STATUS_CHOICES = [
+        ('pending', 'Pendente'),
+        ('approved', 'Aprovado'),
+        ('expired', 'Expirado'),
+        ('cancelled', 'Cancelado'),
+    ]
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    venda = models.ForeignKey(VendaLocal, on_delete=models.CASCADE, related_name='pagamentos_pix', null=True, blank=True)
+    mp_payment_id = models.CharField(max_length=100, verbose_name='Payment ID (MP)')
+    valor = models.DecimalField(max_digits=10, decimal_places=2)
+    qr_code = models.TextField(blank=True, default='', verbose_name='PIX Copia e Cola')
+    qr_code_base64 = models.TextField(blank=True, default='', verbose_name='QR Code Base64')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'PIX {self.mp_payment_id} - R$ {self.valor} ({self.status})'

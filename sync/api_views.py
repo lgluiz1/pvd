@@ -278,3 +278,14 @@ def sync_upload(request):
             sessao.save()
 
     return Response({'status': 'ok', 'vendas_processed': vendas_processadas, 'sessoes_processed': sessoes_processadas})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def sync_mp_config(request):
+    """Retorna configuracoes do Mercado Pago para o PDV Docker sincronizar."""
+    empresa = request.empresa
+    return Response({
+        'mp_access_token': empresa.mp_access_token or '',
+        'mp_configurado': bool(empresa.mp_access_token),
+    })
