@@ -29,6 +29,9 @@ def empresa_config(request):
         empresa.pix_tipo = request.POST.get('pix_tipo', empresa.pix_tipo)
         empresa.pix_nome = request.POST.get('pix_nome', empresa.pix_nome)
         empresa.pix_cidade = request.POST.get('pix_cidade', empresa.pix_cidade)
+        
+        if 'mp_access_token' in request.POST:
+            empresa.mp_access_token = request.POST.get('mp_access_token', '').strip()
 
         if request.FILES.get('logo'):
             empresa.logo = request.FILES['logo']
