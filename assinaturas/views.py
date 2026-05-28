@@ -9,7 +9,7 @@ from assinaturas.recibo_pdf import gerar_recibo_pdf
 @login_required
 def portal_financeiro(request):
     """Portal financeiro visivel apenas para admins da empresa."""
-    if not request.user.is_staff:
+    if not request.user.is_admin:
         return render(request, 'assinaturas/sem_permissao.html')
 
     empresa = request.empresa
