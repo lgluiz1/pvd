@@ -11,7 +11,7 @@ def get_admins_emails(empresa):
     from usuarios.models import Usuario
     admins = Usuario.objects.filter(
         empresa=empresa,
-        is_staff=True,
+        role='admin',
         email__isnull=False,
     ).exclude(email='')
     return list(admins.values_list('email', flat=True))
