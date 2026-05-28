@@ -57,10 +57,20 @@ def detalhe_fatura(request, fatura_id):
     """Detalhe de uma fatura especifica."""
     fatura = get_object_or_404(Fatura, id=fatura_id, empresa=request.empresa)
     itens = fatura.itens.all()
+    
+    from assinaturas.models import ConfigEfi
+    config_efi = ConfigEfi.objects.first()
 
     context = {
         'fatura': fatura,
         'itens': itens,
+        'config_efi': config_efi,
         'page_title': f'Fatura - {fatura.descricao}',
     }
     return render(request, 'assinaturas/detalhe_fatura.html', context)
+
+@login_required
+def status_fatura(request, fatura_id):
+    """Retorna o status atual da fatura via JSON (para polling)."""
+    fatura = get_object_or_404(Fatura, id=fatura_id, empresa=request.empresa)
+    return JsonResponse({'status': fatura.status})

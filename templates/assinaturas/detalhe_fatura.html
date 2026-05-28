@@ -79,18 +79,182 @@
     </div>
     {% endif %}
 
-    <!-- Acoes -->
-    <div class="flex justify-end gap-3">
+    <!-- Acoes (PIX, Boleto, Recibo) -->
+    <div x-data="pixPayment('{{ fatura.id }}')" class="flex flex-wrap justify-end gap-3 mt-6">
+        
         {% if fatura.status == 'pago' %}
-        <a href="{% url 'assinaturas:download_recibo' fatura.id %}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-sm transition-colors">
-            <i data-lucide="download" class="w-4 h-4"></i> Baixar Recibo (PDF)
-        </a>
+            <a href="{% url 'assinaturas:download_recibo' fatura.id %}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-sm transition-colors">
+                <i data-lucide="download" class="w-4 h-4"></i> Baixar Recibo (PDF)
+            </a>
+        {% else %}
+            <!-- Botao Boleto -->
+            {% if fatura.efi_boleto_url %}
+                <a href="{{ fatura.efi_boleto_url }}" target="_blank" class="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold rounded-lg shadow-sm transition-colors">
+                    <i data-lucide="file-text" class="w-4 h-4"></i> Ver Boleto
+                </a>
+            {% endif %}
+
+            <!-- Botao PIX -->
+            {% if config_efi and config_efi.ativo and config_efi.certificado_pix %}
+                <button @click="gerarPix()" type="button" class="inline-flex items-center gap-2 px-5 py-2.5 bg-[#32BCAD] hover:bg-[#2AA092] text-white font-semibold rounded-lg shadow-sm transition-colors" :disabled="loading">
+                    <i data-lucide="qr-code" class="w-4 h-4" x-show="!loading"></i>
+                    <i data-lucide="loader-2" class="w-4 h-4 animate-spin" x-show="loading" x-cloak></i>
+                    <span x-text="loading ? 'Gerando...' : 'Pagar com PIX'"></span>
+                </button>
+            {% else %}
+                <button type="button" disabled class="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 font-semibold rounded-lg shadow-sm cursor-not-allowed" title="Integracao PIX nao configurada no sistema.">
+                    <i data-lucide="qr-code" class="w-4 h-4"></i> Pagar com PIX
+                </button>
+            {% endif %}
         {% endif %}
+
+        <!-- Modal PIX -->
+        <div x-show="showModal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" x-cloak>
+            <div @click.away="fecharModal()" class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+                <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <i data-lucide="qr-code" class="w-5 h-5 text-[#32BCAD]"></i>
+                        Pagamento via PIX
+                    </h3>
+                    <button @click="fecharModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                
+                <div class="p-6 flex flex-col items-center">
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4 text-center">Escaneie o QR Code abaixo com o aplicativo do seu banco.</p>
+                    
+                    <!-- QR Code Image -->
+                    <div class="bg-white p-2 rounded-xl shadow-sm border border-gray-100 mb-6">
+                        <img :src="qrcodeImg" alt="QR Code PIX" class="w-48 h-48 object-contain">
+                    </div>
+                    
+                    <!-- Pix Copia e Cola -->
+                    <div class="w-full">
+                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Ou PIX Copia e Cola:</label>
+                        <div class="flex">
+                            <input type="text" readonly :value="qrcodeText" class="w-full text-xs font-mono bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-l-lg p-2 text-gray-700 dark:text-gray-300 outline-none">
+                            <button @click="copiarPix()" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 border border-l-0 border-gray-300 dark:border-gray-600 rounded-r-lg px-3 flex items-center justify-center transition-colors">
+                                <i data-lucide="copy" class="w-4 h-4 text-gray-600 dark:text-gray-400"></i>
+                            </button>
+                        </div>
+                        <p x-show="copiado" class="text-green-600 dark:text-green-400 text-xs mt-1 text-center font-medium" x-transition>Codigo copiado!</p>
+                    </div>
+
+                    <!-- Loader Aguardando -->
+                    <div class="mt-6 flex flex-col items-center justify-center gap-2 text-[#32BCAD]">
+                        <i data-lucide="loader-2" class="w-6 h-6 animate-spin"></i>
+                        <span class="text-sm font-medium">Aguardando pagamento...</span>
+                        <p class="text-xs text-gray-400" x-text="timeLeftText"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
+<script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('pixPayment', (faturaId) => ({
+            showModal: false,
+            loading: false,
+            qrcodeImg: '',
+            qrcodeText: '',
+            copiado: false,
+            pollInterval: null,
+            timerInterval: null,
+            maxTime: 10 * 60, // 10 minutes em segundos
+            timeLeft: 10 * 60,
+            
+            get timeLeftText() {
+                const m = Math.floor(this.timeLeft / 60).toString().padStart(2, '0');
+                const s = (this.timeLeft % 60).toString().padStart(2, '0');
+                return `${m}:${s}`;
+            },
+
+            async gerarPix() {
+                this.loading = true;
+                try {
+                    // Pega o token CSRF dos cookies do Django
+                    const csrfToken = document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+                    
+                    const res = await fetch(`/assinatura/pix/${faturaId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrfToken,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const data = await res.json();
+                    
+                    if (data.sucesso) {
+                        this.qrcodeImg = data.qrcode_image;
+                        this.qrcodeText = data.qrcode;
+                        this.showModal = true;
+                        this.iniciarPolling();
+                        
+                        // Atualizar icones do modal (como sao renderizados condicionalmente/dinamicamente)
+                        setTimeout(() => lucide.createIcons(), 100);
+                    } else {
+                        alert(data.mensagem || 'Erro ao gerar PIX.');
+                    }
+                } catch (e) {
+                    alert('Erro de comunicacao com o servidor.');
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            copiarPix() {
+                navigator.clipboard.writeText(this.qrcodeText);
+                this.copiado = true;
+                setTimeout(() => this.copiado = false, 2000);
+            },
+
+            fecharModal() {
+                this.showModal = false;
+                this.pararPolling();
+            },
+
+            iniciarPolling() {
+                this.timeLeft = this.maxTime;
+                
+                // Polling do status a cada 5 segundos
+                this.pollInterval = setInterval(async () => {
+                    try {
+                        const res = await fetch(`/assinatura/fatura/${faturaId}/status/`);
+                        const data = await res.json();
+                        
+                        if (data.status === 'pago') {
+                            // Se pagou, para o polling e recarrega a pagina para mostrar o recibo
+                            this.pararPolling();
+                            window.location.reload();
+                        }
+                    } catch(e) {}
+                }, 5000);
+                
+                // Timer de expiracao visual
+                this.timerInterval = setInterval(() => {
+                    this.timeLeft--;
+                    if (this.timeLeft <= 0) {
+                        this.fecharModal();
+                        alert('Tempo expirado. Gere um novo PIX se desejar pagar.');
+                    }
+                }, 1000);
+            },
+
+            pararPolling() {
+                clearInterval(this.pollInterval);
+                clearInterval(this.timerInterval);
+            }
+        }));
+    });
+</script>
+
 <script>
     lucide.createIcons();
 </script>
