@@ -32,6 +32,32 @@ class EmpresaAdmin(admin.ModelAdmin):
     readonly_fields = ['id', 'token', 'created_at', 'updated_at']
     inlines = [PlanoInline, FaturaInline]
 
+    fieldsets = (
+        (None, {
+            'fields': ('id', 'razao_social', 'nome_fantasia', 'cnpj', 'token', 'telefone', 'email', 'logo', 'ativo'),
+        }),
+        ('Endereco para Boleto (Efi)', {
+            'fields': ('endereco_rua', 'endereco_numero', 'endereco_complemento', 'endereco_bairro', 'endereco_cep', 'endereco_cidade', 'endereco_uf'),
+            'description': 'Preencha para emissao automatica de boletos via Efi. Sem esses dados, o boleto nao sera gerado.',
+        }),
+        ('Configuracoes de Fiado', {
+            'fields': ('config_juros_mensal', 'config_juros_atraso', 'config_multa_fixa', 'config_dias_tolerancia'),
+            'classes': ('collapse',),
+        }),
+        ('Configuracoes de Impressao', {
+            'fields': ('config_impressao_tamanho',),
+            'classes': ('collapse',),
+        }),
+        ('PIX (Recebimento de Vendas)', {
+            'fields': ('pix_chave', 'pix_tipo', 'pix_nome', 'pix_cidade'),
+            'classes': ('collapse',),
+        }),
+        ('Sistema', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
+
     @admin.display(description='Assinatura')
     def badge_assinatura(self, obj):
         """Calcula o status da assinatura baseado nas faturas."""

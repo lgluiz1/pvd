@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from assinaturas.webhook_views import efi_notification_webhook
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -19,6 +20,8 @@ urlpatterns = [
     path('promocoes/', include('promocoes.urls')),
     path('auditoria/', include('auditoria.urls')),
     path('', include('assinaturas.urls')),
+    # Webhook Efi (notificacao de pagamento)
+    path('api/efi/webhook/', efi_notification_webhook, name='efi_webhook'),
     # API
     path('api/', include('core.api_urls')),
 ]

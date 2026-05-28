@@ -22,6 +22,15 @@ class Empresa(BaseModel):
     logo = models.ImageField(upload_to='empresas/logos/', blank=True, null=True)
     ativo = models.BooleanField(default=True, verbose_name='Ativa')
 
+    # Endereco estruturado (necessario para emissao de boleto via Efi)
+    endereco_rua = models.CharField(max_length=200, blank=True, default='', verbose_name='Rua/Logradouro')
+    endereco_numero = models.CharField(max_length=20, blank=True, default='', verbose_name='Numero')
+    endereco_bairro = models.CharField(max_length=100, blank=True, default='', verbose_name='Bairro')
+    endereco_cep = models.CharField(max_length=10, blank=True, default='', verbose_name='CEP')
+    endereco_cidade = models.CharField(max_length=100, blank=True, default='', verbose_name='Cidade')
+    endereco_uf = models.CharField(max_length=2, blank=True, default='', verbose_name='UF')
+    endereco_complemento = models.CharField(max_length=100, blank=True, default='', verbose_name='Complemento')
+
     # Configurações de fiado
     config_juros_mensal = models.DecimalField(
         max_digits=5, decimal_places=2, default=0,

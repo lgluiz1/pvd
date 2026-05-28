@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'sync',
     'relatorios',
     'assinaturas',
+    'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -236,3 +237,21 @@ JAZZMIN_UI_TWEAKS = {
     "actions_sticky_top": True
 }
 
+# ─── Celery (Redis) ──────────────────────────────────────────────────────
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'America/Sao_Paulo'
+CELERY_ENABLE_UTC = False
+
+# Schedule do Celery Beat
+from celery.schedules import crontab
+CELERY_BEAT_SCHEDULE = {
+    'processar-faturas-diarias': {
+        'task': 'assinaturas.tasks.processar_faturas_diarias',
+        'schedule': crontab(hour=6, minute=0),
+        'options': {'queue': 'default'},
+    },
+}

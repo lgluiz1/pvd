@@ -13,11 +13,16 @@ services:
       - "5439:5432"
     restart: always
 
+  redis:
+    image: redis:7-alpine
+    restart: always
+
   web:
     build: .
     command: sh -c "python manage.py migrate --noinput && python create_superuser.py && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"
     volumes:
       - .:/app
+      - media_data:/app/media
     ports:
       - "8037:8000"
     environment:
@@ -26,9 +31,46 @@ services:
       - SECRET_KEY=pdv-super-secret-key-123
       - ALLOWED_HOSTS=pvd.luizgustavo.tech,localhost,127.0.0.1
       - CORS_ORIGINS=https://pvd.luizgustavo.tech,http://localhost:3000,http://127.0.0.1:3000
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
       - db
+      - redis
+    restart: always
+
+  celery_worker:
+    build: .
+    command: celery -A config worker -l info -Q default
+    volumes:
+      - .:/app
+      - media_data:/app/media
+    environment:
+      - DATABASE_URL=postgres://pdv_user:pdv_pass@db:5432/pdv_cloud
+      - DEBUG=True
+      - SECRET_KEY=pdv-super-secret-key-123
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    restart: always
+
+  celery_beat:
+    build: .
+    command: celery -A config beat -l info
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgres://pdv_user:pdv_pass@db:5432/pdv_cloud
+      - DEBUG=True
+      - SECRET_KEY=pdv-super-secret-key-123
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
     restart: always
 
 volumes:
   postgres_data:
+  media_data:

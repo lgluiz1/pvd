@@ -12,3 +12,6 @@ whitenoise==6.8.2
 dj-database-url==3.1.2
 django-jazzmin==3.0.1
 reportlab>=4.0
+celery[redis]>=5.3
+django-celery-beat>=2.6
+efipay>=1.0
