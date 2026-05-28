@@ -73,6 +73,21 @@
         </div>
     </div>
 
+    <!-- Popup de Instalação PWA -->
+    <div id="pwa-install-popup" class="fixed bottom-4 right-4 max-w-sm w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 z-50 transform transition-transform duration-300 translate-y-full opacity-0 flex items-start gap-4">
+        <div class="flex-shrink-0">
+            <img src="{% static 'icons/icon-192x192.png' %}" alt="Logo" class="w-12 h-12 rounded-lg">
+        </div>
+        <div class="flex-1">
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Instalar Aplicativo</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Instale o PDV Cloud no seu dispositivo para acesso rápido e melhor experiência.</p>
+            <div class="mt-3 flex gap-2">
+                <button id="pwa-install-btn" class="text-xs bg-primary-600 hover:bg-primary-700 text-white font-medium py-1.5 px-3 rounded-md transition-colors">Instalar</button>
+                <button id="pwa-close-btn" class="text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium py-1.5 px-3 rounded-md transition-colors">Agora Não</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Alpine.js (para dropdowns e modals simples) -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
@@ -109,6 +124,49 @@
                 });
             });
         }
+
+        // Lógica do Popup de Instalação PWA
+        let deferredPrompt;
+        const installPopup = document.getElementById('pwa-install-popup');
+        const installBtn = document.getElementById('pwa-install-btn');
+        const closeBtn = document.getElementById('pwa-close-btn');
+
+        // Detectar se já está rodando como app instalado (standalone)
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone || document.referrer.includes('android-app://');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Previne o prompt padrão do Chrome de aparecer na hora
+            e.preventDefault();
+            
+            // Só mostrar se não estiver no modo standalone e se o usuário não recusou antes (opcional, aqui mostramos sempre se o evento for disparado)
+            if (!isStandalone) {
+                deferredPrompt = e;
+                // Exibe nosso popup customizado com animação
+                installPopup.classList.remove('translate-y-full', 'opacity-0');
+                installPopup.classList.add('translate-y-0', 'opacity-100');
+            }
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                // Esconde o popup
+                installPopup.classList.remove('translate-y-0', 'opacity-100');
+                installPopup.classList.add('translate-y-full', 'opacity-0');
+                // Mostra o prompt nativo
+                deferredPrompt.prompt();
+                // Aguarda a resposta do usuário
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response to the install prompt: ${outcome}`);
+                // Limpa o prompt
+                deferredPrompt = null;
+            }
+        });
+
+        closeBtn.addEventListener('click', () => {
+            // Esconde o popup apenas nesta sessão
+            installPopup.classList.remove('translate-y-0', 'opacity-100');
+            installPopup.classList.add('translate-y-full', 'opacity-0');
+        });
     </script>
     
     {% block extra_scripts %}{% endblock %}
