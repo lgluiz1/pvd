@@ -255,3 +255,26 @@ def consultar_notificacao_efi(token):
         msg = f'Erro ao consultar notificacao Efi: {str(e)}'
         logger.error(f'[Efi] {msg}')
         return False, msg
+
+def consultar_pix_efi(txid):
+    """
+    Consulta o status de uma cobranca PIX especifica pelo txid.
+    Retorna (sucesso, dados).
+    """
+    efi, config = _get_efi_client()
+    if not efi:
+        return False, 'Integracao Efi inativa.'
+
+    try:
+        params = {'txid': txid}
+        response = efi.pix_detail_charge(params=params)
+
+        if 'status' in response:
+            return True, response
+        else:
+            return False, f'Resposta inesperada: {response}'
+
+    except Exception as e:
+        msg = f'Erro ao consultar PIX Efi: {str(e)}'
+        logger.error(f'[Efi] {msg}')
+        return False, msg

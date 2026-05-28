@@ -72,5 +72,43 @@ def detalhe_fatura(request, fatura_id):
 @login_required
 def status_fatura(request, fatura_id):
     """Retorna o status atual da fatura via JSON (para polling)."""
+    from assinaturas.efi_service import consultar_pix_efi
+    from assinaturas.emails import enviar_recibo_pagamento
+
     fatura = get_object_or_404(Fatura, id=fatura_id, empresa=request.empresa)
+    
+    # Se ainda estiver pendente e tiver txid do PIX, vamos perguntar ativamente para a Efi
+    if fatura.status == 'pendente' and fatura.efi_pix_txid:
+        ok, dados_pix = consultar_pix_efi(fatura.efi_pix_txid)
+        if ok and dados_pix.get('status') == 'CONCLUIDA':
+            # Pagamento confirmado!
+            fatura.status = 'pago'
+            fatura.forma_pagamento = 'pix'
+            
+            # Extrair data de pagamento se possivel
+            pix_detalhes = dados_pix.get('pix', [])
+            if pix_detalhes and len(pix_detalhes) > 0:
+                horario = pix_detalhes[0].get('horario', '')
+                if horario:
+                    try:
+                        # Pega apenas a data do datetime ISO
+                        fatura.data_pagamento = date.fromisoformat(horario[:10])
+                    except:
+                        fatura.data_pagamento = date.today()
+            
+            if not fatura.data_pagamento:
+                fatura.data_pagamento = date.today()
+                
+            fatura.save()
+            
+            # Envia recibo
+            if not fatura.email_recibo_enviado:
+                try:
+                    ok_recibo, _ = enviar_recibo_pagamento(fatura)
+                    if ok_recibo:
+                        fatura.email_recibo_enviado = True
+                        fatura.save(update_fields=['email_recibo_enviado'])
+                except:
+                    pass
+
     return JsonResponse({'status': fatura.status})
