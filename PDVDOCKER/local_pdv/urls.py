@@ -17,4 +17,6 @@ urlpatterns = [
     path('pix/gerar/', views.ajax_gerar_pix, name='gerar_pix'),
     path('pix/status/', views.ajax_status_pix, name='status_pix'),
     path('sync-mp/', views.ajax_sync_mp, name='sync_mp'),
+    path('cancelar-venda/<uuid:venda_id>/', views.cancelar_venda, name='cancelar_venda'),
+    path('venda-detalhes/<uuid:venda_id>/', views.get_venda_detalhes, name='get_venda_detalhes'),
 ]

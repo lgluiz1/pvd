@@ -53,6 +53,10 @@ def caixa_home(request):
     # Caixa atual
     sessao_aberta = SessaoCaixaLocal.objects.filter(operador_username=request.user.username, status='aberta').first()
 
+    vendas_recentes = []
+    if sessao_aberta:
+        vendas_recentes = VendaLocal.objects.filter(sessao=sessao_aberta).order_by('-created_at')
+
     return render(request, 'local_pdv/caixa.html', {
         'produtos': produtos,
         'clientes': clientes,
@@ -60,6 +64,7 @@ def caixa_home(request):
         'produtos_estoque_baixo': produtos_estoque_baixo,
         'sessao_aberta': sessao_aberta,
         'mp_configurado': config.mp_configurado,
+        'vendas_recentes': vendas_recentes,
     })
 
 
@@ -402,3 +407,59 @@ def ajax_sync_mp(request):
         'message': msg,
         'mp_configurado': config.mp_configurado,
     })
+
+@csrf_exempt
+@login_required(login_url='login')
+def cancelar_venda(request, venda_id):
+    if request.method == 'POST':
+        try:
+            venda = VendaLocal.objects.get(id=venda_id)
+            if venda.status == 'cancelada':
+                return JsonResponse({'success': False, 'error': 'Venda já está cancelada.'})
+            
+            venda.status = 'cancelada'
+            venda.synced = False  # Força sincronizar o cancelamento
+            venda.save()
+            
+            # Devolvemos estoque local? Sim.
+            for item in venda.itens.all():
+                produto = item.produto
+                produto.quantidade += item.quantidade
+                produto.save()
+
+            return JsonResponse({'success': True})
+        except VendaLocal.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Venda não encontrada.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Método inválido.'})
+
+
+@login_required(login_url='login')
+def get_venda_detalhes(request, venda_id):
+    try:
+        venda = VendaLocal.objects.get(id=venda_id)
+        itens = []
+        for item in venda.itens.all():
+            itens.append({
+                'produto_nome': item.produto.nome,
+                'quantidade': float(item.quantidade),
+                'unidade_medida': item.produto.unidade_medida,
+                'valor_unitario': float(item.valor_unitario),
+                'total': float(item.total),
+            })
+        
+        data = {
+            'success': True,
+            'id': str(venda.id),
+            'numero': str(venda.id)[:8],
+            'total': float(venda.total),
+            'metodo_pagamento': venda.metodo_pagamento.upper(),
+            'status': venda.status,
+            'created_at': venda.created_at.strftime('%d/%m/%Y %H:%M:%S'),
+            'cliente': venda.cliente.nome if venda.cliente else None,
+            'itens': itens
+        }
+        return JsonResponse(data)
+    except VendaLocal.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Venda não encontrada.'})

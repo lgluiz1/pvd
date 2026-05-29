@@ -61,6 +61,7 @@ class VendaLocal(models.Model):
     total = models.DecimalField(max_digits=10, decimal_places=2)
     metodo_pagamento = models.CharField(max_length=20) # dinheiro, debito, credito, pix, fiado
     cliente = models.ForeignKey(ClienteLocal, on_delete=models.SET_NULL, null=True, blank=True)
+    status = models.CharField(max_length=20, default='finalizada')
     synced = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

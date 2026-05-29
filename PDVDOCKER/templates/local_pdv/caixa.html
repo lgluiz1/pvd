@@ -48,18 +48,24 @@
 
         <!-- Sync Actions & API Status -->
         <div class="flex items-center gap-4">
+            {% if request.user.is_superuser %}
             <div class="text-right hidden md:block">
                 <p class="text-xs text-gray-500 font-medium">Último Sync: <span id="sync-time" class="text-gray-300 font-mono">{{ config.ultimo_sync|date:"d/m H:i"|default:"Nunca" }}</span></p>
                 <p class="text-[10px] text-gray-400 font-mono select-all truncate max-w-[150px]">{{ config.api_token }}</p>
             </div>
+            {% endif %}
             
             <button onclick="pullSnapshot()" class="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold bg-blue-600/10 text-blue-400 border border-blue-500/20 rounded-lg hover:bg-blue-600 hover:text-white transition-all shadow-sm">
                 <i data-lucide="refresh-cw" class="w-4 h-4"></i> Sincronizar Cadastros
             </button>
 
+            {% if request.user.is_superuser %}
             <button onclick="openConfigModal()" class="p-2 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white rounded-lg transition-colors" title="Configurar Conexão Cloud">
                 <i data-lucide="settings" class="w-5 h-5"></i>
             </button>
+            {% endif %}
+
+            <div class="h-8 w-px bg-gray-700 mx-2"></div>
 
             {% if sessao_aberta %}
             <button onclick="document.getElementById('modal-fechar-caixa').classList.remove('hidden')" class="flex items-center gap-2 px-3.5 py-2 text-sm font-bold bg-amber-600/20 text-amber-500 border border-amber-500/20 rounded-lg hover:bg-amber-600 hover:text-white transition-all shadow-sm">
@@ -185,22 +191,51 @@
                 </button>
             </div>
 
-            <!-- Low Stock Warnings Widget -->
+            <!-- Recent Sales Widget -->
             <div class="glass-card p-6 rounded-2xl shadow-xl flex flex-col gap-3">
                 <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                    <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500"></i> Alertas de Estoque
+                    <i data-lucide="history" class="w-4 h-4 text-purple-500"></i> Últimas Vendas da Sessão
                 </h3>
-                <div id="stock-alerts-box" class="max-h-[150px] overflow-y-auto space-y-2">
-                    {% if produtos_estoque_baixo %}
-                        {% for p in produtos_estoque_baixo %}
-                            <p class="text-xs text-red-400 font-semibold bg-red-500/10 p-2 border border-red-500/20 rounded-lg flex items-center gap-1.5">
-                                <i data-lucide="alert-triangle" class="w-3.5 h-3.5 shrink-0"></i> 
-                                {{ p.nome }} está com estoque baixo ({{ p.quantidade|floatformat:3 }} {{ p.unidade_medida }})!
-                            </p>
-                        {% endfor %}
-                    {% else %}
-                        <p class="text-xs text-gray-500">Nenhum produto em nível crítico no estoque local.</p>
-                    {% endif %}
+                <div class="max-h-[180px] overflow-y-auto pr-1 custom-scrollbar">
+                    <table class="w-full text-left text-xs text-gray-300">
+                        <thead class="text-gray-500 border-b border-gray-800 sticky top-0 bg-slate-900/90 backdrop-blur z-10">
+                            <tr>
+                                <th class="pb-2 font-semibold">HORA</th>
+                                <th class="pb-2 font-semibold text-right">TOTAL</th>
+                                <th class="pb-2 font-semibold text-center w-24">AÇÕES</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800/50">
+                            {% for venda in vendas_recentes %}
+                            <tr class="hover:bg-gray-800/30 transition-colors">
+                                <td class="py-2 flex items-center gap-2">
+                                    {% if venda.status == 'cancelada' %}
+                                    <span class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"></span>
+                                    {% else %}
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></span>
+                                    {% endif %}
+                                    <span class="font-mono">{{ venda.created_at|date:"H:i" }}</span>
+                                </td>
+                                <td class="py-2 text-right font-bold text-white">R$ {{ venda.total }}</td>
+                                <td class="py-2 text-center flex justify-center gap-1.5">
+                                    <button onclick="viewSaleDetails('{{ venda.id }}')" class="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded" title="Ver Detalhes">
+                                        <i data-lucide="eye" class="w-4 h-4"></i>
+                                    </button>
+                                    <button onclick="reprintSale('{{ venda.id }}')" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded" title="Reimprimir Cupom" {% if venda.status == 'cancelada' %}disabled style="opacity: 0.3;"{% endif %}>
+                                        <i data-lucide="printer" class="w-4 h-4"></i>
+                                    </button>
+                                    <button onclick="cancelSale('{{ venda.id }}')" class="p-1.5 text-red-400 hover:bg-red-400/10 rounded" title="Cancelar Venda" {% if venda.status == 'cancelada' %}disabled style="opacity: 0.3;"{% endif %}>
+                                        <i data-lucide="x-circle" class="w-4 h-4"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="py-4 text-center text-gray-500 italic">Nenhuma venda realizada neste caixa ainda.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </section>
@@ -461,6 +496,54 @@
                     <button type="button" onclick="closeUiConfirm()" class="flex-1 px-4 py-2 bg-gray-800 text-sm font-semibold text-gray-300 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500">Cancelar</button>
                     <button type="button" id="ui-confirm-btn" class="flex-1 px-6 py-2 bg-amber-600 text-sm font-bold text-white rounded-lg hover:bg-amber-700 shadow-lg shadow-amber-500/20 focus:outline-none focus:ring-2 focus:ring-amber-500">Confirmar</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detalhes da Venda -->
+    <div id="modal-venda-detalhes" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 transition-opacity">
+        <div class="glass-card p-6 rounded-2xl shadow-2xl max-w-lg w-full border border-gray-700/50 transform scale-95 transition-transform" id="modal-venda-detalhes-content">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <i data-lucide="receipt" class="text-blue-500"></i> Detalhes da Venda
+            </h2>
+            
+            <div class="bg-gray-900/50 rounded-xl p-4 mb-4 border border-gray-800 text-sm">
+                <div class="flex justify-between mb-2">
+                    <span class="text-gray-400">Número:</span>
+                    <span class="text-white font-mono" id="detalhe-numero">...</span>
+                </div>
+                <div class="flex justify-between mb-2">
+                    <span class="text-gray-400">Data/Hora:</span>
+                    <span class="text-white" id="detalhe-data">...</span>
+                </div>
+                <div class="flex justify-between mb-2">
+                    <span class="text-gray-400">Status:</span>
+                    <span class="font-bold uppercase" id="detalhe-status">...</span>
+                </div>
+                <div class="flex justify-between mb-2">
+                    <span class="text-gray-400">Pagamento:</span>
+                    <span class="text-white" id="detalhe-pagamento">...</span>
+                </div>
+            </div>
+
+            <h3 class="text-sm font-semibold text-gray-400 mb-2 uppercase tracking-wider">Itens</h3>
+            <div class="max-h-40 overflow-y-auto mb-4 custom-scrollbar">
+                <table class="w-full text-left text-sm text-gray-300">
+                    <tbody id="detalhe-itens-tbody" class="divide-y divide-gray-800">
+                        <!-- Itens injected here via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-between items-center bg-blue-900/20 p-4 rounded-xl border border-blue-500/20">
+                <span class="text-gray-400 font-semibold uppercase">Total Geral</span>
+                <span class="text-2xl font-black text-blue-400" id="detalhe-total">R$ 0,00</span>
+            </div>
+
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeSaleDetails()" class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2">
+                    <i data-lucide="check"></i> Fechar (ESC)
+                </button>
             </div>
         </div>
     </div>
@@ -1446,6 +1529,153 @@
         setInterval(() => {
             pullSnapshot(false);
         }, 60000);
+
+        // ==========================================
+        // VENDAS RECENTES - FUNÇÕES
+        // ==========================================
+        const barcodeInput = document.getElementById('barcode-input');
+        function isAnyModalOpen() {
+             return document.querySelectorAll('div[id^="modal-"]:not(.hidden)').length > 0;
+        }
+
+        async function viewSaleDetails(vendaId) {
+            try {
+                const res = await fetch(`/venda-detalhes/${vendaId}/`);
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('detalhe-numero').innerText = data.numero;
+                    document.getElementById('detalhe-data').innerText = data.created_at;
+                    document.getElementById('detalhe-pagamento').innerText = data.metodo_pagamento;
+                    
+                    const statusEl = document.getElementById('detalhe-status');
+                    statusEl.innerText = data.status;
+                    if (data.status === 'cancelada') {
+                        statusEl.className = 'font-bold uppercase text-red-500';
+                    } else {
+                        statusEl.className = 'font-bold uppercase text-emerald-500';
+                    }
+                    
+                    document.getElementById('detalhe-total').innerText = 'R$ ' + data.total.toFixed(2).replace('.', ',');
+
+                    const tbody = document.getElementById('detalhe-itens-tbody');
+                    tbody.innerHTML = '';
+                    data.itens.forEach(item => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td class="py-2">${item.produto_nome}</td>
+                            <td class="py-2 text-right">${item.quantidade} ${item.unidade_medida}</td>
+                            <td class="py-2 text-right">R$ ${item.total.toFixed(2).replace('.', ',')}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+
+                    document.getElementById('modal-venda-detalhes').classList.remove('hidden');
+                    document.getElementById('modal-venda-detalhes').classList.add('flex');
+                    setTimeout(() => {
+                        document.getElementById('modal-venda-detalhes-content').classList.remove('scale-95');
+                    }, 10);
+                } else {
+                    showUiSystemAlert('Erro ao buscar detalhes: ' + data.error);
+                }
+            } catch (err) {
+                showUiSystemAlert('Erro de comunicação.');
+            }
+        }
+
+        function closeSaleDetails() {
+            document.getElementById('modal-venda-detalhes-content').classList.add('scale-95');
+            setTimeout(() => {
+                document.getElementById('modal-venda-detalhes').classList.add('hidden');
+                document.getElementById('modal-venda-detalhes').classList.remove('flex');
+                if (barcodeInput) barcodeInput.focus();
+            }, 200);
+        }
+
+        async function reprintSale(vendaId) {
+            try {
+                const res = await fetch(`/venda-detalhes/${vendaId}/`);
+                const data = await res.json();
+                
+                if (data.success) {
+                    const fakeCart = data.itens.map(item => ({
+                        nome: item.produto_nome,
+                        qtd: item.quantidade,
+                        unidade: item.unidade_medida,
+                        preco: item.valor_unitario,
+                        total: item.total
+                    }));
+                    
+                    // Imprime
+                    imprimirCupom(vendaId, fakeCart, data.total, data.metodo_pagamento, data.cliente);
+                    if (barcodeInput) barcodeInput.focus();
+                }
+            } catch (err) {
+                showUiSystemAlert('Erro de comunicação para reimpressão.');
+            }
+        }
+
+        function cancelSale(vendaId) {
+            showUiConfirm("Deseja cancelar esta venda e devolver os itens ao estoque local?", () => {
+                fetch(`/cancelar-venda/${vendaId}/`, { method: 'POST' })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            showUiAlert("Venda cancelada com sucesso!");
+                            setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                            showUiAlert("Erro ao cancelar: " + data.error);
+                        }
+                    });
+            });
+        }
+
+        // ==========================================
+        // LEITOR DE CÓDIGO DE BARRAS GLOBAL
+        // ==========================================
+        let globalBarcodeBuffer = "";
+        let globalBarcodeTimeout = null;
+
+        document.addEventListener('keydown', function(e) {
+            // Se houver algum modal aberto, não interfere
+            if (isAnyModalOpen() || isModalOpen()) return;
+            
+            // Ignora teclas de atalho e função
+            if (e.key === 'Escape' || e.key.startsWith('F') || e.ctrlKey || e.altKey || e.metaKey) return;
+
+            // Se o foco já estiver no barcodeInput, deixa o evento normal seguir (ou previne duplicidade)
+            if (document.activeElement === barcodeInput) return;
+
+            // Captura de dígitos rápidos do leitor
+            if (e.key === 'Enter') {
+                if (globalBarcodeBuffer.length > 2) {
+                    barcodeInput.value = globalBarcodeBuffer;
+                    globalBarcodeBuffer = "";
+                    e.preventDefault();
+                    // Dispara a lógica de handleBarcodeKey manualmente passando Enter
+                    const event = new KeyboardEvent('keydown', {'key': 'Enter'});
+                    barcodeInput.dispatchEvent(event);
+                }
+            } else if (e.key.length === 1) { // Apenas caracteres (letras/numeros)
+                globalBarcodeBuffer += e.key;
+                
+                // Limpa o buffer se digitar devagar (humano) vs leitor rápido (100ms)
+                clearTimeout(globalBarcodeTimeout);
+                globalBarcodeTimeout = setTimeout(() => {
+                    globalBarcodeBuffer = "";
+                }, 100); 
+            }
+        });
+
+        // Hotkeys para modais (ESC para fechar)
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                if (!document.getElementById('modal-venda-detalhes').classList.contains('hidden')) {
+                    closeSaleDetails();
+                }
+            }
+        });
+
     </script>
 
     <!-- Overlay de Abertura de Caixa Obrigatória -->

@@ -165,6 +165,7 @@ def push_sales_to_cloud():
             "sessao_id": str(v.sessao.id) if v.sessao else None,
             "total": float(v.total),
             "metodo_pagamento": v.metodo_pagamento,
+            "status": v.status,
             "cliente_id": str(v.cliente.id) if v.cliente else None,
             "created_at": v.created_at.isoformat(),
             "itens": itens

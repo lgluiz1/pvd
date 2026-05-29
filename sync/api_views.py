@@ -128,8 +128,14 @@ def sync_upload(request):
             if not local_id:
                 continue
                 
-            # Evitar duplicar se a venda já existe no Cloud
-            if Venda.objects.filter(id=local_id, empresa=empresa).exists():
+            # Evitar duplicar se a venda já existe no Cloud, a menos que seja um cancelamento
+            venda_existente = Venda.objects.filter(id=local_id, empresa=empresa).first()
+            if venda_existente:
+                if v.get('status') == 'cancelada' and venda_existente.status != 'cancelada':
+                    venda_existente.status = 'cancelada'
+                    venda_existente.save()
+                    if venda_existente.sessao_caixa:
+                        sessoes_para_recalcular.add(venda_existente.sessao_caixa)
                 continue
                 
             # Buscar maior número de venda + 1
@@ -168,7 +174,7 @@ def sync_upload(request):
                 subtotal=Decimal(str(v.get('total', 0))),
                 total=Decimal(str(v.get('total', 0))),
                 forma_pagamento=forma_pag,
-                status='finalizada',
+                status=v.get('status', 'finalizada'),
                 sync_status='synced',
             )
             
