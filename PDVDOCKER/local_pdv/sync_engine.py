@@ -143,8 +143,8 @@ def push_sales_to_cloud():
             "operador_username": s.operador_username,
             "abertura": s.abertura.isoformat(),
             "fechamento": s.fechamento.isoformat() if s.fechamento else None,
-            "valor_abertura": float(s.valor_abertura),
-            "valor_fechamento": float(s.valor_fechamento) if s.valor_fechamento else None,
+            "valor_abertura": float(s.valor_abertura) if s.valor_abertura else 0.0,
+            "valor_fechamento": float(s.valor_fechamento) if s.valor_fechamento is not None else 0.0,
             "status": s.status,
             "observacoes": s.observacoes
         })
