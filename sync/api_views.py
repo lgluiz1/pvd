@@ -100,12 +100,13 @@ def sync_upload(request):
             operador = Usuario.objects.filter(username=username, empresa=empresa).first()
             
             # Tenta buscar ou criar a sessão
+            val_ab = s_data.get('valor_abertura')
             sessao, created = SessaoCaixa.objects.get_or_create(
                 local_id=local_id,
                 empresa=empresa,
                 defaults={
                     'operador': operador,
-                    'valor_abertura': Decimal(str(s_data.get('valor_abertura', 0))),
+                    'valor_abertura': Decimal(str(val_ab)) if val_ab is not None else Decimal('0'),
                     'status': s_data.get('status', 'aberta')
                 }
             )
@@ -115,7 +116,8 @@ def sync_upload(request):
                 sessao.abertura = datetime.fromisoformat(s_data.get('abertura'))
             if s_data.get('fechamento'):
                 sessao.fechamento = datetime.fromisoformat(s_data.get('fechamento'))
-                sessao.valor_fechamento = Decimal(str(s_data.get('valor_fechamento', 0)))
+                val_fec = s_data.get('valor_fechamento')
+                sessao.valor_fechamento = Decimal(str(val_fec)) if val_fec is not None else Decimal('0')
                 sessao.status = 'fechada'
                 
                 # Update observacoes se vier preenchido

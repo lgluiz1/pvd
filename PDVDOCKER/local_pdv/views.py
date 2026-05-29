@@ -82,6 +82,10 @@ def abrir_caixa(request):
             valor_abertura=valor,
             status='aberta'
         )
+        
+        # Push to cloud immediately to reflect opening status
+        push_sales_to_cloud()
+
     return redirect('caixa_home')
 
 
@@ -127,7 +131,7 @@ def ajax_validar_fechamento(request):
         from django.db.models import Sum
         total_vendas_dinheiro = sessao.vendas.filter(
             status='concluida', 
-            forma_pagamento='dinheiro'
+            metodo_pagamento='dinheiro'
         ).aggregate(total=Sum('total'))['total'] or 0.0
 
         total_esperado = float(sessao.valor_abertura) + float(total_vendas_dinheiro)
