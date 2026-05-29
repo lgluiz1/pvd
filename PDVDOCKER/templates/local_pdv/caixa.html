@@ -214,18 +214,13 @@
                                     {% else %}
                                     <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></span>
                                     {% endif %}
+                                    <span class="font-mono font-bold text-gray-400">#{{ forloop.revcounter }}</span>
                                     <span class="font-mono">{{ venda.created_at|date:"H:i" }}</span>
                                 </td>
                                 <td class="py-2 text-right font-bold text-white">R$ {{ venda.total }}</td>
                                 <td class="py-2 text-center flex justify-center gap-1.5">
                                     <button onclick="viewSaleDetails('{{ venda.id }}')" class="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded" title="Ver Detalhes">
                                         <i data-lucide="eye" class="w-4 h-4"></i>
-                                    </button>
-                                    <button onclick="reprintSale('{{ venda.id }}')" class="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded" title="Reimprimir Cupom" {% if venda.status == 'cancelada' %}disabled style="opacity: 0.3;"{% endif %}>
-                                        <i data-lucide="printer" class="w-4 h-4"></i>
-                                    </button>
-                                    <button onclick="cancelSale('{{ venda.id }}')" class="p-1.5 text-red-400 hover:bg-red-400/10 rounded" title="Cancelar Venda" {% if venda.status == 'cancelada' %}disabled style="opacity: 0.3;"{% endif %}>
-                                        <i data-lucide="x-circle" class="w-4 h-4"></i>
                                     </button>
                                 </td>
                             </tr>
@@ -540,9 +535,17 @@
                 <span class="text-2xl font-black text-blue-400" id="detalhe-total">R$ 0,00</span>
             </div>
 
-            <div class="mt-6 flex justify-end">
-                <button onclick="closeSaleDetails()" class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2">
-                    <i data-lucide="check"></i> Fechar (ESC)
+            <div class="mt-6 flex justify-between gap-3">
+                <div class="flex gap-2" id="detalhe-acoes">
+                    <button id="btn-detalhe-reprint" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg font-semibold transition-colors flex items-center gap-2">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Reimprimir
+                    </button>
+                    <button id="btn-detalhe-cancel" class="px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg font-semibold transition-colors flex items-center gap-2">
+                        <i data-lucide="x-circle" class="w-4 h-4"></i> Cancelar
+                    </button>
+                </div>
+                <button onclick="closeSaleDetails()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2 shadow-lg shadow-blue-500/20">
+                    <i data-lucide="check" class="w-4 h-4"></i> Fechar (ESC)
                 </button>
             </div>
         </div>
@@ -1572,6 +1575,29 @@
 
                     document.getElementById('modal-venda-detalhes').classList.remove('hidden');
                     document.getElementById('modal-venda-detalhes').classList.add('flex');
+                    
+                    const btnReprint = document.getElementById('btn-detalhe-reprint');
+                    const btnCancel = document.getElementById('btn-detalhe-cancel');
+                    
+                    btnReprint.onclick = () => { closeSaleDetails(); reprintSale(vendaId); };
+                    btnCancel.onclick = () => { closeSaleDetails(); cancelSale(vendaId); };
+                    
+                    if (data.status === 'cancelada') {
+                        btnReprint.disabled = true;
+                        btnReprint.style.opacity = '0.3';
+                        btnReprint.classList.add('cursor-not-allowed');
+                        btnCancel.disabled = true;
+                        btnCancel.style.opacity = '0.3';
+                        btnCancel.classList.add('cursor-not-allowed');
+                    } else {
+                        btnReprint.disabled = false;
+                        btnReprint.style.opacity = '1';
+                        btnReprint.classList.remove('cursor-not-allowed');
+                        btnCancel.disabled = false;
+                        btnCancel.style.opacity = '1';
+                        btnCancel.classList.remove('cursor-not-allowed');
+                    }
+
                     setTimeout(() => {
                         document.getElementById('modal-venda-detalhes-content').classList.remove('scale-95');
                     }, 10);
@@ -1675,6 +1701,9 @@
                 }
             }
         });
+
+        // Inicializa todos os ícones Lucide da interface (incluindo os recém-adicionados no HTML)
+        lucide.createIcons();
 
     </script>
 
