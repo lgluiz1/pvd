@@ -291,5 +291,5 @@ def sync_mp_config(request):
         'empresa_nome': empresa.nome_fantasia or empresa.razao_social or 'Empresa PDV',
         'empresa_cnpj': getattr(empresa, 'cnpj', ''),
         'empresa_telefone': getattr(empresa, 'telefone', ''),
-        'empresa_endereco': getattr(empresa, 'endereco', ''),
+        'empresa_endereco': f"{empresa.endereco_rua}, {empresa.endereco_numero} - {empresa.endereco_cidade}/{empresa.endereco_uf}".strip(', -/'),
     })
