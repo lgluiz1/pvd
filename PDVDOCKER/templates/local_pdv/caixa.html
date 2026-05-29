@@ -92,10 +92,10 @@
             </div>
 
             <!-- Items Table -->
-            <div class="flex-1 overflow-y-auto min-h-[300px]">
+            <div id="cart-scroll-container" class="h-[400px] overflow-y-auto custom-scrollbar" style="height: 420px;">
                 <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-900/30 text-xs uppercase tracking-wider font-semibold text-gray-400 border-b border-gray-800/80">
+                    <thead class="sticky top-0 bg-[#161f30] z-10 shadow-sm border-b border-gray-800/80">
+                        <tr class="text-xs uppercase tracking-wider font-semibold text-gray-400">
                             <th class="px-6 py-3">Código</th>
                             <th class="px-6 py-3">Descrição</th>
                             <th class="px-6 py-3 text-center">Unitário</th>
@@ -755,10 +755,12 @@
 
             // Se passar da verificação, adiciona/atualiza no carrinho
             if (existingIndex > -1) {
-                cartItems[existingIndex].quantidade = targetQuantity;
-                cartItems[existingIndex].total = cartItems[existingIndex].quantidade * cartItems[existingIndex].valor_venda;
+                const item = cartItems.splice(existingIndex, 1)[0];
+                item.quantidade = targetQuantity;
+                item.total = item.quantidade * item.valor_venda;
+                cartItems.unshift(item);
             } else {
-                cartItems.push({
+                cartItems.unshift({
                     id: product.id,
                     codigo: product.codigo_interno || product.codigo_barras || 'S/C',
                     nome: product.nome,
@@ -770,6 +772,8 @@
                 });
             }
             renderCartTable();
+            const scrollContainer = document.getElementById('cart-scroll-container');
+            if(scrollContainer) scrollContainer.scrollTop = 0;
             document.getElementById('barcode-input').focus();
         }
 
