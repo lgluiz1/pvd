@@ -105,7 +105,7 @@ def fechar_caixa(request):
         sessao.synced = False
         sessao.save()
 
-    return redirect('caixa_home')
+    return redirect('logout')
 
 @login_required(login_url='login')
 def ajax_validar_fechamento(request):
