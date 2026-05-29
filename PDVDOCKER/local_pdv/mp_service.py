@@ -35,10 +35,11 @@ def gerar_pix(valor, descricao, access_token, email_pagador='cliente@email.com')
 
         # Idempotency key para evitar cobrancas duplicadas
         idempotency_key = str(uuid.uuid4())
-        request_options = {
-            'headers': {
-                'x-idempotency-key': idempotency_key
-            }
+        
+        from mercadopago.config import RequestOptions
+        request_options = RequestOptions()
+        request_options.custom_headers = {
+            'x-idempotency-key': idempotency_key
         }
 
         result = sdk.payment().create(payment_data, request_options)

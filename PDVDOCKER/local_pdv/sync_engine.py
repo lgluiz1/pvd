@@ -35,7 +35,9 @@ def pull_snapshot_from_cloud():
         # 1. Sincronizar Produtos
         produtos_dados = data.get('produtos', [])
         produtos_sincronizados = 0
+        cloud_product_ids = []
         for p in produtos_dados:
+            cloud_product_ids.append(p['id'])
             ProdutoLocal.objects.update_or_create(
                 id=p['id'],
                 defaults={
@@ -49,11 +51,16 @@ def pull_snapshot_from_cloud():
                 }
             )
             produtos_sincronizados += 1
+            
+        # Deletar produtos locais que não estão mais na nuvem
+        produtos_removidos = ProdutoLocal.objects.exclude(id__in=cloud_product_ids).delete()[0]
 
         # 2. Sincronizar Clientes
         clientes_dados = data.get('clientes', [])
         clientes_sincronizados = 0
+        cloud_client_ids = []
         for c in clientes_dados:
+            cloud_client_ids.append(c['id'])
             ClienteLocal.objects.update_or_create(
                 id=c['id'],
                 defaults={
@@ -64,6 +71,9 @@ def pull_snapshot_from_cloud():
                 }
             )
             clientes_sincronizados += 1
+            
+        # Deletar clientes locais que não estão mais na nuvem
+        clientes_removidos = ClienteLocal.objects.exclude(id__in=cloud_client_ids).delete()[0]
 
         # 3. Sincronizar Usuários (Operadores)
         usuarios_dados = data.get('usuarios', [])
@@ -193,12 +203,17 @@ def pull_mp_config():
         data = response.json()
         token_mp = data.get('mp_access_token', '')
 
+        config.mp_access_token = token_mp
+        config.empresa_nome = data.get('empresa_nome', config.empresa_nome)
+        config.empresa_cnpj = data.get('empresa_cnpj', config.empresa_cnpj)
+        config.empresa_telefone = data.get('empresa_telefone', config.empresa_telefone)
+        config.empresa_endereco = data.get('empresa_endereco', config.empresa_endereco)
+        config.save()
+
         if token_mp:
-            config.mp_access_token = token_mp
-            config.save()
-            return True, "Credenciais do Mercado Pago sincronizadas!"
+            return True, "Sincronizado com sucesso (com MP)!"
         else:
-            return False, "Mercado Pago nao configurado no Cloud."
+            return True, "Sincronizado com sucesso (sem MP)."
 
     except requests.exceptions.RequestException as e:
         return False, f"Erro de conexao: {str(e)}"

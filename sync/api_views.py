@@ -164,7 +164,7 @@ def sync_upload(request):
                 numero=numero,
                 cliente=cliente,
                 operador=request.user,
-                caixa=sessao_cloud,
+                sessao_caixa=sessao_cloud,
                 subtotal=Decimal(str(v.get('total', 0))),
                 total=Decimal(str(v.get('total', 0))),
                 forma_pagamento=forma_pag,
@@ -249,7 +249,7 @@ def sync_upload(request):
         # 3. Recalcular totais dos caixas afetados (igual a caixa_fechar)
         for sessao in sessoes_para_recalcular:
             vendas_sessao = Venda.objects.filter(
-                empresa=empresa, caixa=sessao, status='finalizada'
+                empresa=empresa, sessao_caixa=sessao, status='finalizada'
             )
             
             sessao.total_vendas = vendas_sessao.aggregate(t=Sum('total'))['t'] or 0
@@ -283,9 +283,13 @@ def sync_upload(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def sync_mp_config(request):
-    """Retorna configuracoes do Mercado Pago para o PDV Docker sincronizar."""
+    """Retorna configuracoes do Mercado Pago e dados da Empresa para o PDV Docker sincronizar."""
     empresa = request.empresa
     return Response({
         'mp_access_token': empresa.mp_access_token or '',
         'mp_configurado': bool(empresa.mp_access_token),
+        'empresa_nome': empresa.nome_fantasia or empresa.razao_social or 'Empresa PDV',
+        'empresa_cnpj': getattr(empresa, 'cnpj', ''),
+        'empresa_telefone': getattr(empresa, 'telefone', ''),
+        'empresa_endereco': getattr(empresa, 'endereco', ''),
     })

@@ -5,30 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Frente de Caixa Local (OFFLINE)</title>
-    <!-- Tailwind CSS (Offline local PWA fallback) -->
+    <!-- Tailwind CSS (compilado com todas as classes) -->
     <link rel="stylesheet" href="{% static 'css/tailwind.min.css' %}">
-    <!-- Tailwind CSS para estilização rápida online -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        darkBg: '#0f172a',
-                        darkCard: '#1e293b',
-                        accentBlue: '#3b82f6',
-                        accentGreen: '#10b981',
-                        accentRed: '#ef4444',
-                    }
-                }
-            }
-        }
-    </script>
-    <!-- Lucide Icons (Offline local PWA fallback) -->
+    <!-- Lucide Icons (Offline local) -->
     <script src="{% static 'js/lucide.min.js' %}"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Google Fonts Outfit -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght=300;400;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -37,8 +17,7 @@
             background-color: #0b0f19;
         }
         .glass-card {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(12px);
+            background: #1e293b;
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
         .glow-blue:focus {
@@ -53,13 +32,13 @@
     <nav class="glass-card py-4 px-6 border-b border-gray-800 flex justify-between items-center shadow-lg">
         <div class="flex items-center gap-3">
             <div class="bg-blue-600 p-2 rounded-lg text-white shadow-md shadow-blue-500/20">
-                <i data-lucide="monitor" class="w-6 h-6 animate-pulse"></i>
+                <i data-lucide="monitor" class="w-6 h-6"></i>
             </div>
             <div>
                 <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
                     Frente de Caixa Local
                     <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
                         OFFLINE-READY
                     </span>
                 </h1>
@@ -209,7 +188,7 @@
             <!-- Low Stock Warnings Widget -->
             <div class="glass-card p-6 rounded-2xl shadow-xl flex flex-col gap-3">
                 <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                    <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500 animate-bounce"></i> Alertas de Estoque
+                    <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500"></i> Alertas de Estoque
                 </h3>
                 <div id="stock-alerts-box" class="max-h-[150px] overflow-y-auto space-y-2">
                     {% if produtos_estoque_baixo %}
@@ -252,7 +231,7 @@
 
                     <div>
                         <label class="block text-sm font-semibold text-gray-300 mb-1">Informe o Peso (kg) *</label>
-                        <input type="text" id="input-scale-weight" placeholder="Ex: 1,250" class="w-full px-4 py-3 bg-gray-950 border border-gray-800 rounded-xl outline-none text-2xl text-emerald-400 font-mono text-center font-bold" onkeydown="handleWeightKey(event)">
+                        <input type="text" id="input-scale-weight" placeholder="Ex: 1,890" class="w-full px-4 py-3 bg-gray-950 border border-gray-800 rounded-xl outline-none text-2xl text-emerald-400 font-mono text-center font-bold" onkeydown="handleWeightKey(event)" oninput="formatWeightInputMask(event)">
                         <p class="text-[10px] text-gray-500 mt-1">Aperte Enter para confirmar a inserção do item no cupom.</p>
                     </div>
                 </div>
@@ -362,7 +341,7 @@
 
                 <div class="flex justify-end gap-3">
                     <button type="button" onclick="closePaymentModal()" class="px-4 py-2.5 bg-gray-800 text-sm font-semibold text-gray-300 rounded-lg hover:bg-gray-700">Voltar (Esc)</button>
-                    <button type="button" onclick="confirmPaymentCheckout()" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-sm font-bold text-white rounded-lg shadow-lg shadow-emerald-500/20">Finalizar e Imprimir Cupom</button>
+                    <button type="button" id="btn-finalizar-fiado" onclick="confirmPaymentCheckout()" class="hidden px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-sm font-bold text-white rounded-lg shadow-lg shadow-emerald-500/20">Finalizar e Imprimir Cupom</button>
                 </div>
             </div>
         </div>
@@ -506,22 +485,36 @@
             document.getElementById('barcode-input').focus();
         }
 
-        function showUiConfirm(msg, callback) {
+        let cancelCallback = null;
+
+        function showUiConfirm(msg, callback, onCancel) {
             document.getElementById('ui-confirm-msg').innerText = msg;
             confirmCallback = callback;
+            cancelCallback = onCancel || null;
             document.getElementById('ui-confirm-modal').classList.remove('hidden');
+            // Focar botão Confirmar para permitir pressionar Enter
+            setTimeout(() => {
+                const btn = document.getElementById('ui-confirm-btn');
+                if(btn) btn.focus();
+            }, 50);
         }
 
         function closeUiConfirm() {
             document.getElementById('ui-confirm-modal').classList.add('hidden');
+            const cb = cancelCallback;
             confirmCallback = null;
+            cancelCallback = null;
+            if (cb) cb();
             document.getElementById('barcode-input').focus();
         }
 
         document.getElementById('ui-confirm-btn').addEventListener('click', function() {
             document.getElementById('ui-confirm-modal').classList.add('hidden');
-            if (confirmCallback) confirmCallback();
+            const cb = confirmCallback;
             confirmCallback = null;
+            cancelCallback = null;
+            if (cb) cb();
+            document.getElementById('barcode-input').focus();
         });
 
         // Lucide
@@ -549,9 +542,14 @@
 
             // ESC: Limpar ou Fechar modais
             if (event.key === 'Escape') {
-                closeWeightModal();
-                closePaymentModal();
-                closeConfigModal();
+                const confirmModal = document.getElementById('ui-confirm-modal');
+                if (!confirmModal.classList.contains('hidden')) {
+                    closeUiConfirm();
+                } else {
+                    closeWeightModal();
+                    closePaymentModal();
+                    closeConfigModal();
+                }
             }
 
             // F1: Focar leitor
@@ -833,6 +831,24 @@
             setTimeout(() => input.focus(), 150);
         }
 
+        function formatWeightInputMask(event) {
+            let val = event.target.value.replace(/\D/g, '');
+            if (!val) {
+                event.target.value = '';
+                return;
+            }
+            // Transforma o que foi digitado num número com 3 casas decimais. Ex: 1890 -> 1,890 kg
+            // Se o usuário quer 1,89kg ele vai digitar 1890.
+            let num = (parseInt(val, 10) / 1000).toFixed(3);
+            event.target.value = num.replace('.', ',');
+            
+            // Opcional: Atualizar o valor total na tela enquanto digita
+            const price = parseFloat(selectedProductForWeight.valor_venda) || 0;
+            const weight = parseFloat(num) || 0;
+            const subtotal = price * weight;
+            document.getElementById('weight-product-price').innerHTML = `R$ ${price.toFixed(2).replace('.', ',')} / kg <br><span class="text-emerald-400 text-lg mt-2 block">Total: R$ ${subtotal.toFixed(2).replace('.', ',')}</span>`;
+        }
+
         function closeWeightModal() {
             document.getElementById('weight-modal').classList.add('hidden');
             selectedProductForWeight = null;
@@ -875,10 +891,11 @@
             document.getElementById('fiado-customer-select').value = '';
             document.getElementById('input-nfc-swipe').value = '';
 
-            // Reset borders
+            // Reset borders and button visibility
             ['dinheiro', 'debito', 'credito', 'fiado'].forEach(m => {
                 document.getElementById(`btn-pay-${m}`).classList.remove('border-blue-500');
             });
+            document.getElementById('btn-finalizar-fiado').classList.add('hidden');
 
             document.getElementById('payment-modal').classList.remove('hidden');
         }
@@ -889,6 +906,8 @@
 
         function selectPaymentMethod(method) {
             selectedPaymentMethod = method;
+            const totalStr = document.getElementById('label-total').textContent.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+            const total = parseFloat(totalStr);
             
             // Destaque visual
             ['dinheiro', 'debito', 'credito', 'pix', 'fiado'].forEach(m => {
@@ -903,11 +922,27 @@
             });
 
             const fiadoSec = document.getElementById('fiado-section');
+            const btnFinalizarFiado = document.getElementById('btn-finalizar-fiado');
+            
             if (method === 'fiado') {
                 fiadoSec.classList.remove('hidden');
+                btnFinalizarFiado.classList.remove('hidden');
                 document.getElementById('input-nfc-swipe').focus();
             } else {
                 fiadoSec.classList.add('hidden');
+                btnFinalizarFiado.classList.add('hidden');
+                
+                // Fluxos diretos para outros métodos
+                if (method === 'dinheiro') {
+                    processarFinalizacaoVenda(total);
+                } else if (method === 'debito' || method === 'credito') {
+                    const nomeMetodo = method === 'debito' ? 'Débito' : 'Crédito';
+                    showUiConfirm(`O pagamento de R$ ${total.toFixed(2).replace('.', ',')} no ${nomeMetodo} foi realizado com sucesso na maquininha?`, function() {
+                        processarFinalizacaoVenda(total);
+                    });
+                } else if (method === 'pix') {
+                    iniciarPagamentoPix(total);
+                }
             }
         }
 
@@ -966,23 +1001,12 @@
         }
 
         function confirmPaymentCheckout() {
-            if (!selectedPaymentMethod) {
-                showUiAlert('Por favor, selecione um método de pagamento!');
-                return;
-            }
-
             if (selectedPaymentMethod === 'fiado' && !selectedCustomerForFiado) {
                 showUiAlert('Por favor, selecione o cliente ou aproxime o Cartão NFC para Fiado!');
                 return;
             }
 
             const total = parseFloat(document.getElementById('label-total').textContent.replace('R$', '').replace(/\./g, '').replace(',', '.').trim());
-
-            if (selectedPaymentMethod === 'pix') {
-                iniciarPagamentoPix(total);
-                return;
-            }
-
             processarFinalizacaoVenda(total);
         }
 
@@ -1011,8 +1035,6 @@
             .then(r => r.json())
             .then(res => {
                 if (res.success) {
-                    showUiAlert('Venda finalizada com sucesso no POS local! Cupom impresso.');
-                    
                     // Exibir alertas de estoque baixo se houver
                     if (res.alertas_estoque && res.alertas_estoque.length > 0) {
                         const box = document.getElementById('stock-alerts-box');
@@ -1027,14 +1049,21 @@
                         lucide.createIcons();
                     }
 
-                    // Imprime o cupom automaticamente
-                    imprimirCupom(res.venda_id, cartItems, total, selectedPaymentMethod, selectedCustomerForFiado);
+                    const resetCaixa = () => {
+                        cartItems = [];
+                        renderCartTable();
+                        closePaymentModal();
+                        document.getElementById('barcode-input').focus();
+                    };
 
-                    // Limpa carrinho
-                    cartItems = [];
-                    renderCartTable();
-                    closePaymentModal();
-                    document.getElementById('barcode-input').focus();
+                    showUiConfirm('Venda finalizada com sucesso! Deseja imprimir o comprovante?', function() {
+                        // Imprime o cupom automaticamente
+                        imprimirCupom(res.venda_id, cartItems, total, selectedPaymentMethod, selectedCustomerForFiado);
+                        resetCaixa();
+                    }, function() {
+                        resetCaixa();
+                    });
+
                 } else {
                     showUiAlert(res.error || 'Erro ao processar venda.');
                 }
@@ -1153,6 +1182,11 @@
 
         function imprimirCupom(venda_id, itens, total, metodo, cliente) {
             const printWindow = window.open('', '_blank', 'width=400,height=600');
+            if (!printWindow) {
+                console.warn("Popup blocked. Cannot print receipt.");
+                showUiAlert("Venda finalizada! O bloqueador de pop-ups impediu a impressão automática do cupom. Permita pop-ups no navegador para imprimir.");
+                return;
+            }
             const dataAtual = new Date().toLocaleString('pt-BR');
             let itensHtml = '';
             
@@ -1172,9 +1206,10 @@
             });
 
             let clienteHtml = '';
-            if (metodo === 'fiado' && cliente) {
+            if (cliente) {
                 clienteHtml = `
-                    <div style="margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px;">
+                    <div class="dashed-line"></div>
+                    <div style="font-size: 10px; margin-bottom: 5px;">
                         <strong>CLIENTE:</strong> ${cliente.nome}
                     </div>
                 `;
@@ -1200,9 +1235,21 @@
                     </style>
                 </head>
                 <body>
-                    <div class="text-center bold" style="font-size: 14px; margin-bottom: 5px;">CUPOM NÃO FISCAL</div>
-                    <div class="text-center" style="font-size: 12px;">FRENTE DE CAIXA</div>
+                    <div class="text-center bold" style="font-size: 14px; margin-bottom: 5px;">{{ config.empresa_nome|default:"NOME DA EMPRESA"|escapejs }}</div>
+                    {% if config.empresa_cnpj %}
+                    <div class="text-center" style="font-size: 10px;">CNPJ: {{ config.empresa_cnpj|escapejs }}</div>
+                    {% endif %}
+                    {% if config.empresa_telefone %}
+                    <div class="text-center" style="font-size: 10px;">Tel: {{ config.empresa_telefone|escapejs }}</div>
+                    {% endif %}
+                    {% if config.empresa_endereco %}
+                    <div class="text-center" style="font-size: 10px;">{{ config.empresa_endereco|escapejs }}</div>
+                    {% endif %}
+                    
+                    <div class="text-center bold" style="font-size: 12px; margin-top: 5px;">CUPOM NÃO FISCAL</div>
                     <div class="text-center" style="font-size: 10px;">Data: ${dataAtual} | Venda: #${venda_id.substring(0, 8)}</div>
+                    
+                    ${clienteHtml}
                     
                     <div class="dashed-line"></div>
                     
@@ -1231,23 +1278,19 @@
                         <strong>PAGAMENTO:</strong> ${metodo.toUpperCase()}
                     </div>
                     
-                    ${clienteHtml}
-
                     <div class="dashed-line"></div>
                     <div class="text-center" style="font-size: 10px; margin-top: 10px;">Obrigado pela preferência!</div>
                     
-                    <script>
-                        window.onload = function() {
-                            window.print();
-                            setTimeout(function() { window.close(); }, 500);
-                        }
-                    </script>
                 </body>
                 </html>
             `;
             
             printWindow.document.write(html);
             printWindow.document.close();
+            printWindow.onload = function() {
+                printWindow.print();
+                setTimeout(function() { printWindow.close(); }, 500);
+            };
         }
 
         // ------------------ MODAIS DE CONFIG E CONEXÃO CLOUD ------------------
@@ -1339,16 +1382,47 @@
                         const timeSpan = document.getElementById('sync-time');
                         if (timeSpan) {
                             timeSpan.textContent = res.ultimo_sync;
-                            // Feedback visual rápido
                             timeSpan.classList.add('text-emerald-400', 'scale-105');
                             setTimeout(() => {
                                 timeSpan.classList.remove('text-emerald-400', 'scale-105');
                             }, 2000);
                         }
 
-                        // Atualiza dinamicamente as listas de produtos e clientes via JS
+                        // Atualiza listas de produtos e clientes
                         if (res.produtos && res.clientes) {
                             updateDropdowns(res.produtos, res.clientes);
+                        }
+
+                        // Atualiza alertas de estoque baixo
+                        if (res.alertas_estoque) {
+                            const box = document.getElementById('stock-alerts-box');
+                            box.innerHTML = '';
+                            if (res.alertas_estoque.length > 0) {
+                                res.alertas_estoque.forEach(alerta => {
+                                    const p = document.createElement('p');
+                                    p.className = 'text-xs text-red-400 font-semibold bg-red-500/10 p-2 border border-red-500/20 rounded-lg flex items-center gap-1.5';
+                                    p.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> ' + alerta;
+                                    box.appendChild(p);
+                                });
+                            } else {
+                                box.innerHTML = '<p class="text-xs text-gray-500">Nenhum produto em nível crítico no estoque local.</p>';
+                            }
+                        }
+
+                        // Atualiza flag PIX
+                        if (res.mp_configurado !== undefined) {
+                            const pixBtn = document.getElementById('btn-pay-pix');
+                            if (pixBtn) {
+                                if (res.mp_configurado) {
+                                    pixBtn.disabled = false;
+                                    pixBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+                                    pixBtn.title = '';
+                                } else {
+                                    pixBtn.disabled = true;
+                                    pixBtn.classList.add('opacity-40', 'cursor-not-allowed');
+                                    pixBtn.title = 'PIX não configurado. Sincronize o Mercado Pago no Cloud.';
+                                }
+                            }
                         }
                     } else if (isManual) {
                         showUiAlert(res.message || 'Erro ao sincronizar.');

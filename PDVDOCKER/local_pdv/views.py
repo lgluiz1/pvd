@@ -273,12 +273,20 @@ def ajax_sync_snapshot(request):
         config = get_config()
         ultimo_sync = config.ultimo_sync.strftime('%d/%m %H:%M') if config.ultimo_sync else "Nunca"
 
+        # Alertas de estoque baixo
+        alertas_estoque = []
+        for p in ProdutoLocal.objects.all():
+            if p.estoque_baixo:
+                alertas_estoque.append(f"{p.nome} está com estoque baixo ({p.quantidade:.3f} {p.unidade_medida})!")
+
         return JsonResponse({
             'success': True,
             'message': message,
             'produtos': produtos,
             'clientes': clientes,
-            'ultimo_sync': ultimo_sync
+            'ultimo_sync': ultimo_sync,
+            'alertas_estoque': alertas_estoque,
+            'mp_configurado': config.mp_configurado,
         })
     return JsonResponse({'success': False, 'message': message})
 

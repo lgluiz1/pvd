@@ -88,8 +88,12 @@ class ConfigLocal(models.Model):
     api_token = models.CharField(max_length=128, blank=True)
     api_cloud_url = models.CharField(max_length=255, default='http://localhost:8000')
     ultimo_sync = models.DateTimeField(blank=True, null=True)
-    # Mercado Pago (puxado do Cloud)
     mp_access_token = models.CharField(max_length=300, blank=True, default='')
+    # Dados da Empresa (puxado do Cloud)
+    empresa_nome = models.CharField(max_length=200, blank=True, default='Empresa PDV')
+    empresa_cnpj = models.CharField(max_length=20, blank=True, default='')
+    empresa_telefone = models.CharField(max_length=20, blank=True, default='')
+    empresa_endereco = models.CharField(max_length=255, blank=True, default='')
 
     def __str__(self):
         return "Configuração do POS Local"

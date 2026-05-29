@@ -19,6 +19,7 @@ class ProdutoSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'nome', 'categoria', 'categoria_nome', 'marca',
             'codigo_barras', 'sem_codigo_barras', 'codigo_interno',
+            'unidade_medida',
             'valor_compra', 'lucro_percentual', 'valor_venda',
             'comprado_em_caixa', 'valor_caixa', 'qtd_itens_caixa',
             'quantidade', 'estoque_minimo', 'estoque_baixo', 'estoque_critico',
@@ -33,7 +34,7 @@ class ProdutoResumoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Produto
         fields = [
-            'id', 'nome', 'codigo_barras', 'codigo_interno',
+            'id', 'nome', 'codigo_barras', 'codigo_interno', 'unidade_medida',
             'valor_venda', 'quantidade', 'favorito', 'imagem',
         ]
 
