@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import TemplateView
 from local_pdv import views
 
 urlpatterns = [
@@ -19,4 +20,8 @@ urlpatterns = [
     path('sync-mp/', views.ajax_sync_mp, name='sync_mp'),
     path('cancelar-venda/<uuid:venda_id>/', views.cancelar_venda, name='cancelar_venda'),
     path('venda-detalhes/<uuid:venda_id>/', views.get_venda_detalhes, name='get_venda_detalhes'),
+    
+    # PWA Support
+    path('manifest.json', TemplateView.as_view(template_name='local_pdv/manifest.json', content_type='application/json'), name='manifest'),
+    path('sw.js', TemplateView.as_view(template_name='local_pdv/sw.js', content_type='application/javascript'), name='sw'),
 ]

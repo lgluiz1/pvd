@@ -9,6 +9,9 @@
     <link rel="stylesheet" href="{% static 'css/tailwind.min.css' %}">
     <!-- Lucide Icons (Offline local) -->
     <script src="{% static 'js/lucide.min.js' %}"></script>
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0b0f19">
     <!-- Google Fonts Outfit -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght=300;400;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -25,6 +28,18 @@
             border-color: #3b82f6;
         }
     </style>
+    <script>
+        // --- PWA Service Worker Registration (No Cache) ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then((registration) => {
+                    console.log('PWA ServiceWorker registrado com sucesso! Scope:', registration.scope);
+                }).catch((err) => {
+                    console.error('Falha ao registrar PWA ServiceWorker:', err);
+                });
+            });
+        }
+    </script>
 </head>
 <body class="text-gray-100 min-h-screen flex flex-col overflow-hidden">
 
