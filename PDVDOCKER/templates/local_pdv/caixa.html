@@ -218,9 +218,9 @@
                                     <span class="font-mono">{{ venda.created_at|date:"H:i" }}</span>
                                 </td>
                                 <td class="py-2 text-right font-bold text-white">R$ {{ venda.total }}</td>
-                                <td class="py-2 text-center flex justify-center gap-1.5">
-                                    <button onclick="viewSaleDetails('{{ venda.id }}')" class="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded" title="Ver Detalhes">
-                                        <i data-lucide="eye" class="w-4 h-4"></i>
+                                <td class="py-2 text-center align-middle">
+                                    <button onclick="viewSaleDetails('{{ venda.id }}')" class="p-1.5 inline-block text-blue-400 hover:bg-blue-400/10 rounded transition-colors" title="Ver Detalhes">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                                     </button>
                                 </td>
                             </tr>
