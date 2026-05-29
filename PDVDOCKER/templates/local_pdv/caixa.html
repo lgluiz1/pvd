@@ -83,8 +83,8 @@
     <main class="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden">
         
         <!-- Left Side: Scanned Items (Grid 8 cols) -->
-        <section class="lg:col-span-8 flex flex-col glass-card rounded-2xl overflow-hidden shadow-2xl">
-            <div class="p-4 bg-gray-900/60 border-b border-gray-800 flex justify-between items-center">
+        <section class="lg:col-span-8 flex flex-col glass-card rounded-2xl overflow-hidden shadow-2xl h-full">
+            <div class="p-4 bg-gray-900/60 border-b border-gray-800 flex justify-between items-center shrink-0">
                 <span class="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                     <i data-lucide="shopping-cart" class="w-4 h-4 text-blue-500"></i> Cupom de Compra
                 </span>
@@ -92,7 +92,7 @@
             </div>
 
             <!-- Items Table -->
-            <div id="cart-scroll-container" class="h-[400px] overflow-y-auto custom-scrollbar" style="height: 420px;">
+            <div id="cart-scroll-container" class="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
                 <table class="w-full text-left border-collapse">
                     <thead class="sticky top-0 bg-[#161f30] z-10 shadow-sm border-b border-gray-800/80">
                         <tr class="text-xs uppercase tracking-wider font-semibold text-gray-400">
@@ -118,7 +118,7 @@
             </div>
 
             <!-- Summary Totals Section -->
-            <div class="p-6 bg-gray-900/40 border-t border-gray-800/80 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="p-6 bg-gray-900/40 border-t border-gray-800/80 grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
                 <div class="flex flex-col justify-center">
                     <span class="text-xs text-gray-400 uppercase font-semibold">Subtotal</span>
                     <span id="label-subtotal" class="text-2xl font-bold text-gray-300 font-mono">R$ 0,00</span>
