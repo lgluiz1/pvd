@@ -145,7 +145,8 @@ def push_sales_to_cloud():
             "fechamento": s.fechamento.isoformat() if s.fechamento else None,
             "valor_abertura": float(s.valor_abertura),
             "valor_fechamento": float(s.valor_fechamento) if s.valor_fechamento else None,
-            "status": s.status
+            "status": s.status,
+            "observacoes": s.observacoes
         })
 
     # Serializar vendas pendentes

@@ -29,6 +29,45 @@
         }
     </style>
     <script>
+        function validarFechamento() {
+            const form = document.getElementById('form-fechar-caixa');
+            const valorInformado = document.getElementById('input-valor-fechamento').value;
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            // Fazer a validação via AJAX
+            fetch("{% url 'validar_fechamento' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "X-CSRFToken": csrfToken
+                },
+                body: new URLSearchParams({
+                    "valor_fechamento": valorInformado
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.warning) {
+                    document.getElementById('modal-fechar-caixa').classList.add('hidden');
+                    showUiConfirm(data.message, () => {
+                        // User confirmed to force close with lower value
+                        document.getElementById('input-observacoes').value = "Caixa fechado com valor abaixo do vendido durante sessão";
+                        form.submit();
+                    }, () => {
+                        // User cancelled
+                        document.getElementById('modal-fechar-caixa').classList.remove('hidden');
+                    });
+                } else {
+                    // No warning, just submit
+                    form.submit();
+                }
+            })
+            .catch(err => {
+                console.error("Erro ao validar fechamento:", err);
+                form.submit(); // fallback to normal submit if ajax fails
+            });
+        }
+
         // --- PWA Service Worker Registration (No Cache) ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -83,8 +122,8 @@
             <div class="h-8 w-px bg-gray-700 mx-2"></div>
 
             {% if sessao_aberta %}
-            <button onclick="document.getElementById('modal-fechar-caixa').classList.remove('hidden')" class="flex items-center gap-2 px-3.5 py-2 text-sm font-bold bg-amber-600/20 text-amber-500 border border-amber-500/20 rounded-lg hover:bg-amber-600 hover:text-white transition-all shadow-sm">
-                <i data-lucide="lock-keyhole" class="w-4 h-4"></i> Fechar Caixa
+            <button onclick="document.getElementById('modal-fechar-caixa').classList.remove('hidden'); setTimeout(() => { document.getElementById('input-valor-fechamento').focus(); document.getElementById('input-valor-fechamento').select(); }, 100);" class="flex items-center gap-2 px-3.5 py-2 text-sm font-bold bg-amber-600/20 text-amber-500 border border-amber-500/20 rounded-lg hover:bg-amber-600 hover:text-white transition-all shadow-sm">
+                <i data-lucide="lock-keyhole" class="w-4 h-4"></i> Fechar Caixa (F10)
             </button>
             {% endif %}
 
@@ -882,7 +921,26 @@
                 closeWeightModal();
                 closePaymentModal();
                 closeConfigModal();
+                document.getElementById('modal-fechar-caixa').classList.add('hidden');
                 document.getElementById('barcode-input').focus();
+            }
+
+            // F10 -> Fechar Caixa
+            if (event.key === 'F10') {
+                event.preventDefault();
+                if (isModalOpen() === false) {
+                    const modal = document.getElementById('modal-fechar-caixa');
+                    if (modal) {
+                        modal.classList.remove('hidden');
+                        setTimeout(() => {
+                            const input = document.getElementById('input-valor-fechamento');
+                            if (input) {
+                                input.focus();
+                                input.select();
+                            }
+                        }, 100);
+                    }
+                }
             }
 
             // Alt + C -> Limpar Cupom
@@ -1741,18 +1799,19 @@
             
             <p class="text-gray-400 text-sm mb-6">Informe o valor total em dinheiro existente na gaveta no momento deste fechamento.</p>
 
-            <form action="{% url 'fechar_caixa' %}" method="POST">
+            <form id="form-fechar-caixa" action="{% url 'fechar_caixa' %}" method="POST">
                 {% csrf_token %}
+                <input type="hidden" name="observacoes" id="input-observacoes" value="">
                 <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Valor Dinheiro na Gaveta (R$)</label>
                 <div class="relative mb-6">
                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 font-bold">R$</span>
-                    <input type="text" name="valor_fechamento" value="0,00" required class="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 pl-10 pr-4 text-white text-lg font-mono focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500" onfocus="this.select()">
+                    <input type="text" name="valor_fechamento" id="input-valor-fechamento" value="0,00" required class="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 pl-10 pr-4 text-white text-lg font-mono focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500" onfocus="this.select()">
                 </div>
                 <div class="flex gap-3">
                     <button type="button" onclick="document.getElementById('modal-fechar-caixa').classList.add('hidden')" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition-all">
                         Cancelar
                     </button>
-                    <button type="submit" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-all flex items-center justify-center gap-2">
+                    <button type="button" onclick="validarFechamento()" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-all flex items-center justify-center gap-2">
                         <i data-lucide="check-circle" class="w-5 h-5"></i> Fechar Caixa
                     </button>
                 </div>

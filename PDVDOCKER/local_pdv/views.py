@@ -96,13 +96,47 @@ def fechar_caixa(request):
         except ValueError:
             valor_fechamento = 0.0
 
+        observacoes = request.POST.get('observacoes', '')
+
         sessao.valor_fechamento = valor_fechamento
+        sessao.observacoes = observacoes
         sessao.fechamento = timezone.now()
         sessao.status = 'fechada'
         sessao.synced = False
         sessao.save()
 
     return redirect('caixa_home')
+
+@login_required(login_url='login')
+def ajax_validar_fechamento(request):
+    """Calcula se o valor de fechamento informado é menor que as vendas em dinheiro + abertura."""
+    if request.method == 'POST':
+        sessao = SessaoCaixaLocal.objects.filter(operador_username=request.user.username, status='aberta').first()
+        if not sessao:
+            return JsonResponse({'error': 'Nenhuma sessão aberta'}, status=400)
+        
+        valor_informado = request.POST.get('valor_fechamento', '0').replace(',', '.')
+        try:
+            valor_fechamento = float(valor_informado)
+        except ValueError:
+            valor_fechamento = 0.0
+
+        from django.db.models import Sum
+        total_vendas_dinheiro = sessao.vendas.filter(
+            status='concluida', 
+            forma_pagamento='dinheiro'
+        ).aggregate(total=Sum('total'))['total'] or 0.0
+
+        total_esperado = float(sessao.valor_abertura) + float(total_vendas_dinheiro)
+
+        if valor_fechamento < total_esperado:
+            return JsonResponse({
+                'warning': True, 
+                'message': 'Você está fechando o caixa com valor menor que o processado na sessão. Deseja finalizar assim mesmo?'
+            })
+        
+        return JsonResponse({'warning': False})
+    return JsonResponse({'error': 'Método inválido'}, status=405)
 
 @login_required(login_url='login')
 def ajax_buscar_produto(request):

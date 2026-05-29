@@ -45,6 +45,7 @@ class SessaoCaixaLocal(models.Model):
     valor_abertura = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     valor_fechamento = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=20, default='aberta') # aberta, fechada
+    observacoes = models.TextField(blank=True, null=True)
     synced = models.BooleanField(default=False)
 
     class Meta:

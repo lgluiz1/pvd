@@ -8,6 +8,7 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('abrir-caixa/', views.abrir_caixa, name='abrir_caixa'),
     path('fechar-caixa/', views.fechar_caixa, name='fechar_caixa'),
+    path('fechar-caixa/validar/', views.ajax_validar_fechamento, name='validar_fechamento'),
     path('buscar-produto/', views.ajax_buscar_produto, name='buscar_produto'),
     path('buscar-cliente-nfc/', views.ajax_buscar_cliente_nfc, name='buscar_cliente_nfc'),
     path('finalizar-venda/', views.ajax_finalizar_venda, name='finalizar_venda'),

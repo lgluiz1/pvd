@@ -117,7 +117,12 @@ def sync_upload(request):
                 sessao.fechamento = datetime.fromisoformat(s_data.get('fechamento'))
                 sessao.valor_fechamento = Decimal(str(s_data.get('valor_fechamento', 0)))
                 sessao.status = 'fechada'
-            
+                
+                # Update observacoes se vier preenchido
+                obs = s_data.get('observacoes')
+                if obs:
+                    sessao.observacoes = obs
+
             sessao.save()
             sessoes_para_recalcular.add(sessao)
             sessoes_processadas += 1
