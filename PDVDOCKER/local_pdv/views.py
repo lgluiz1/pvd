@@ -105,6 +105,9 @@ def fechar_caixa(request):
         sessao.synced = False
         sessao.save()
 
+        # Push immediately to cloud before logging out
+        push_sales_to_cloud()
+
     return redirect('logout')
 
 @login_required(login_url='login')
