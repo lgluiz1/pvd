@@ -1121,25 +1121,17 @@
             .then(r => r.json())
             .then(res => {
                 if (res.success) {
-                    // Exibir alertas de estoque baixo se houver
-                    if (res.alertas_estoque && res.alertas_estoque.length > 0) {
-                        const box = document.getElementById('stock-alerts-box');
-                        box.innerHTML = '';
-                        res.alertas_estoque.forEach(alertText => {
-                            const p = document.createElement('p');
-                            p.className = "text-xs text-red-400 font-semibold bg-red-500/10 p-2 border border-red-500/20 rounded-lg flex items-center gap-1.5";
-                            p.innerHTML = `<i data-lucide="alert-triangle" class="w-3.5 h-3.5 shrink-0"></i> ${alertText}`;
-                            box.appendChild(p);
-                        });
-                        // Recriar ícones
-                        lucide.createIcons();
-                    }
+                    // O widget de alertas de estoque foi removido e substituído pelas Últimas Vendas
 
                     const resetCaixa = () => {
                         cartItems = [];
                         renderCartTable();
                         closePaymentModal();
                         document.getElementById('barcode-input').focus();
+                        // Recarrega a página para atualizar o widget de Últimas Vendas
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
                     };
 
                     showUiConfirm('Venda finalizada com sucesso! Deseja imprimir o comprovante?', function() {
@@ -1477,22 +1469,6 @@
                         // Atualiza listas de produtos e clientes
                         if (res.produtos && res.clientes) {
                             updateDropdowns(res.produtos, res.clientes);
-                        }
-
-                        // Atualiza alertas de estoque baixo
-                        if (res.alertas_estoque) {
-                            const box = document.getElementById('stock-alerts-box');
-                            box.innerHTML = '';
-                            if (res.alertas_estoque.length > 0) {
-                                res.alertas_estoque.forEach(alerta => {
-                                    const p = document.createElement('p');
-                                    p.className = 'text-xs text-red-400 font-semibold bg-red-500/10 p-2 border border-red-500/20 rounded-lg flex items-center gap-1.5';
-                                    p.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> ' + alerta;
-                                    box.appendChild(p);
-                                });
-                            } else {
-                                box.innerHTML = '<p class="text-xs text-gray-500">Nenhum produto em nível crítico no estoque local.</p>';
-                            }
                         }
 
                         // Atualiza flag PIX
